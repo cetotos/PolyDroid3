@@ -86,6 +86,10 @@
 		<Compile Remove="android/build/**/*.cs" />
 	</ItemGroup>
 
+	<PropertyGroup Condition="'$(PT_PRIVATE_API)' == 'TRUE'">
+		<DefineConstants>$(DefineConstants);PT_PRIVATE_API</DefineConstants>
+	</PropertyGroup>
+
 	<PropertyGroup Condition="'$(IsCreator)' == 'true'">
 		<DefineConstants>$(DefineConstants);CREATOR</DefineConstants>
 	</PropertyGroup>
