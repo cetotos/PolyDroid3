@@ -1,0 +1,32 @@
+name: "Run Dotnet Tests"
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  dotnet-tests:
+    name: Run Dotnet Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        continue-on-error: true
+        with:
+          lfs: true
+          submodules: recursive
+      - name: .NET Installation
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --no-restore
+      - name: Test with the dotnet CLI
+        run: dotnet test --no-build
