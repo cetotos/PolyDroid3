@@ -2,7 +2,7 @@
 
 # Polytoria
 
-Polytoria is a 3D multiplayer gaming platform built on top of the [Godot Engine](https://godotengine.org/). It provides a set of tools for creating your multiplayer games, with server-client architecture, synchronized state replication and scripting powered by [Luau](https://luau.org/). Games can be published to [polytoria.com](http://polytoria.com/), which is accessible from Windows & Linux, with macOS and mobile in the plans!
+Polytoria is a 3D multiplayer gaming platform built on top of the [Godot Engine](https://godotengine.org/). It provides a set of tools for creating your multiplayer games, with server-client architecture, synchronized state replication and scripting powered by [Luau](https://luau.org/). Worlds can be published to [polytoria.com](http://polytoria.com/), which is accessible from Windows, macOS and Linux, with mobile in the works!
 
 ![15 Seconds by phoe](docs/creator.png)
 
@@ -16,7 +16,7 @@ To launch the creator software, head to [polytoria.com/create](https://polytoria
 
 ## Contributing
 
-Contributing guides are currently in work in progress
+Contributing guides are currently a work in progress.
 
 Meanwhile, you can join the [Polytoria Contributors](https://discord.gg/HUgEE9FhSU) Discord server if you have any questions!
 
