@@ -31,6 +31,7 @@ public sealed partial class ClientEntry : Node3D
 	public World Root = null!;
 	public bool IsFocused = false;
 	public bool IsContained = false;
+	public bool IsNetEssentialsReady { get; private set; } = false;
 	private readonly List<int> _clientProcesses = [];
 	public bool IsSoloTest = false;
 
@@ -216,6 +217,7 @@ public sealed partial class ClientEntry : Node3D
 		World.Current = Root;
 
 		PT.Print("World current setup!");
+		IsNetEssentialsReady = true;
 		NetworkEssentialsReady?.Invoke();
 
 		sw.Restart();
@@ -379,6 +381,7 @@ public sealed partial class ClientEntry : Node3D
 					_clientConnectData = await PolyAuthAPI.SendClientConnect();
 
 					PT.Print("Polytoria Network Info ----");
+					PT.Print("World ID: ", _clientConnectData.Value.WorldID);
 					PT.Print("Server ID: ", _clientConnectData.Value.ServerID);
 					PT.Print("Connected at: ", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ"));
 					PT.Print("--------------------------");

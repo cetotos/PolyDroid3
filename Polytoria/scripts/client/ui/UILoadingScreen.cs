@@ -42,7 +42,14 @@ public partial class UILoadingScreen : Control
 		_gameIconImage = new();
 
 		_entry = GetNode<ClientEntry>("../../");
-		_entry.NetworkEssentialsReady += NetworkEssentialsReady;
+		if (_entry.IsNetEssentialsReady)
+		{
+			NetworkEssentialsReady();
+		}
+		else
+		{
+			_entry.NetworkEssentialsReady += NetworkEssentialsReady;
+		}
 
 		_gameDetailsContainer.Visible = false;
 
@@ -51,20 +58,19 @@ public partial class UILoadingScreen : Control
 
 		SetStatusText("Waiting for server...");
 		Visible = true;
-
 	}
 
 	private void OnGameIconLoaded(Resource resource)
 	{
-		if (_bgAppeared) return;
-		_bgAppeared = true;
 		_gameIconRect.Texture = (Texture2D)resource;
 		_iconReady = true;
-		AppearIfReady();
 	}
 
 	private void OnGameThumbnailLoaded(Resource resource)
 	{
+		if (_bgAppeared) return;
+		_bgAppeared = true;
+
 		_gameThumbnailRect.Texture = (Texture2D)resource;
 		_bgAnimPlay.Play("fade_in");
 	}
@@ -81,6 +87,7 @@ public partial class UILoadingScreen : Control
 		_entry.NetworkService.ReplicateSync.InstanceLoadedProgress += InstanceLoadedProgress;
 		_entry.NetworkService.ClientConnectedToServer += OnClientConnectedToServer;
 		_entry.TargetServerReady += OnServerReady;
+		_entry.NetworkEssentialsReady -= NetworkEssentialsReady;
 
 		// Hide loading screen if is server
 		if (_entry.NetworkService.IsServer)
@@ -116,15 +123,16 @@ public partial class UILoadingScreen : Control
 		_gameIconImage.ImageType = ImageTypeEnum.PlaceIcon;
 		_gameIconImage.ImageID = (uint)info.Id;
 
+		// This has to be call manually to force resource load, usual load is queued in frame
+		_gameIconImage.LoadResource();
+
 		_gameTitleLabel.Text = info.Name;
 		_gameCreatorLabel.Text = "By " + info.Creator.Name;
-		_infoReady = true;
-		AppearIfReady();
+		AppearInfo();
 	}
 
-	private void AppearIfReady()
+	private void AppearInfo()
 	{
-		if (!_iconReady || !_infoReady) return;
 		if (_iconAppeared) return;
 		_iconAppeared = true;
 		_animPlay.Play("info_appear");
@@ -135,6 +143,7 @@ public partial class UILoadingScreen : Control
 	{
 		_gameThumbnailImage.ImageType = ImageTypeEnum.WorldThumbnail;
 		_gameThumbnailImage.ImageID = (uint)_entry.Root.FirstWorldMedia;
+		_gameThumbnailImage.LoadResource();
 	}
 
 	private void InstanceLoadedProgress(int current, int max)
@@ -165,5 +174,8 @@ public partial class UILoadingScreen : Control
 	{
 		SetStatusText("Ready!");
 		_animPlay.Play("load_ready");
+
+		_gameThumbnailImage.ResourceLoaded -= OnGameThumbnailLoaded;
+		_gameIconImage.ResourceLoaded -= OnGameIconLoaded;
 	}
 }
