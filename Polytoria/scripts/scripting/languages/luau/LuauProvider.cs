@@ -726,6 +726,7 @@ public sealed partial class LuauProvider : ScriptLanguageProvider
 		try
 		{
 			await ResumeThread(co, state, 0, true);
+
 			int top = co.GetTop();
 			if (top > 0)
 			{
@@ -792,25 +793,41 @@ public sealed partial class LuauProvider : ScriptLanguageProvider
 			state.Error("pcall requires a function");
 			return 0;
 		}
+
+		int nargs = state.GetTop() - 1;
+
 		state.PushValue(1);
 		int funcRef = state.Ref();
 		LuaState co = NewThread(state);
+
 		int coRef = state.Ref();
+
 		state.GetRef(funcRef);
 		state.XMove(co, 1);
+
+		// Move arguments onto the coroutine stack
+		if (nargs > 0)
+		{
+			for (int i = 2; i <= nargs + 1; i++)
+			{
+				state.PushValue(i);
+			}
+			state.XMove(co, nargs);
+		}
+
 		TaskCompletionSource<int> tcs = new();
 		SetYieldTask(state, tcs.Task);
 
-		_ = HandlePCallAsync(co, state, funcRef, coRef, tcs);
+		_ = HandlePCallAsync(co, state, funcRef, coRef, nargs, tcs);
 
 		return state.Yield(2);
 	}
 
-	private async Task HandlePCallAsync(LuaState co, LuaState state, int funcRef, int coRef, TaskCompletionSource<int> tcs)
+	private async Task HandlePCallAsync(LuaState co, LuaState state, int funcRef, int coRef, int nargs, TaskCompletionSource<int> tcs)
 	{
 		try
 		{
-			await ResumeThread(co, state, 0, true);
+			await ResumeThread(co, state, nargs, true);
 			int nresults = co.GetTop();
 			PushValueToLua(state, true);
 			if (nresults > 0)
