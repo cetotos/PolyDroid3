@@ -215,18 +215,9 @@ public partial class NetworkTransformSync : Instance
 	{
 		if (!NetService.IsServer) return;
 		if (!dyn.IsNetworkReady) return;
-
-		Transform3D current = dyn.GetLocalTransform();
 		string objID = dyn.NetworkedObjectID;
 
-		// Broadcast to all except peer
-		foreach (int peerId in Root.Network.NetInstance.PeerIds)
-		{
-			if (peerId != excludePeer)
-			{
-				RpcId(peerId, nameof(NetRecvUpdateTransform), objID, current, lerpTransform);
-			}
-		}
+		_pendingBatchUpdate[objID] = new(dyn, lerpTransform, excludePeer);
 	}
 
 	[NetRpc(AuthorityMode.Any, TransferMode = TransferMode.UnreliableOrdered, CallLocal = false)]
