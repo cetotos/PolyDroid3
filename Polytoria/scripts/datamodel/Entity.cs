@@ -13,6 +13,7 @@ namespace Polytoria.Datamodel;
 [Abstract]
 public abstract partial class Entity : Physical
 {
+	private const float VelocitySyncInterval = 0.4f;
 	private const float MinMass = 0.01f;
 
 	internal RigidBody3D RigidBody = null!;
@@ -20,6 +21,7 @@ public abstract partial class Entity : Physical
 
 	private Vector3 _lastVelocity;
 	private Vector3 _lastAngularVelocity;
+	private double _velocityClock = 0;
 
 	private bool _useGravity = true;
 	private bool _isSpawn = false;
@@ -174,6 +176,11 @@ public abstract partial class Entity : Physical
 	{
 		if (NetTransformAuthority == Root.Network.LocalPeerID)
 		{
+			// Velocity sync clock
+			_velocityClock += delta;
+			if (_velocityClock < VelocitySyncInterval) return;
+			_velocityClock = 0;
+
 			if (!Velocity.IsEqualApprox(_lastVelocity) || !AngularVelocity.IsEqualApprox(_lastAngularVelocity))
 			{
 				_lastVelocity = Velocity;
