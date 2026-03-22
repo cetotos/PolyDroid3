@@ -59,7 +59,7 @@ public partial class Datastore : IScriptObject
 			if (tsk.IsCompletedSuccessfully)
 			{
 				object? val = tsk.Result;
-				callback?.Invoke(val, true, "Not implemented, keeping data until the end of the session.");
+				callback?.Invoke(val, true, null);
 			}
 			else
 			{

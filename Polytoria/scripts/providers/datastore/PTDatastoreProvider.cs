@@ -129,7 +129,7 @@ public class PTDatastoreProvider : IDatastoreProvider
 
 	private async Task LoadDatastore()
 	{
-		using var req = await _client.GetAsync(Globals.ApiEndpoint.PathJoin("https://api.polytoria.com/v1/game/server/datastore/get-data?key=" + Uri.EscapeDataString(_dsKey)));
+		using var req = await _client.GetAsync(Globals.ApiEndpoint.PathJoin("/v1/game/server/datastore/get-data?key=" + Uri.EscapeDataString(_dsKey)));
 		LoadDatastoreJSON(await req.Content.ReadAsStringAsync());
 	}
 
