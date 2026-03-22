@@ -524,6 +524,15 @@ public sealed partial class Menu : PanelContainer
 
 					if (btnI.KeyShortcut != null)
 					{
+						// Setup Ctrl Auto remap for mac
+						foreach (var ev in btnI.KeyShortcut.Events)
+						{
+							var ek = ev.As<InputEventKey>();
+							if (ek.CtrlPressed)
+							{
+								ek.CommandOrControlAutoremap = true;
+							}
+						}
 						menu.SetItemShortcut(index, btnI.KeyShortcut);
 					}
 					addedCount++;
