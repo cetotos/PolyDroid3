@@ -36,9 +36,9 @@ public partial class UILeaderboard : Control
 
 	public override void _Ready()
 	{
-		_players = CoreUIRoot.Singleton.Root.Players;
+		_players = CoreUI.Root.Players;
 
-		_players.PlayerAdded.Connect(AddPlayer);
+		_players.PlayerReady += AddPlayer;
 		_players.PlayerRemoved.Connect(RemovePlayer);
 
 		Stats.StatAdded.Connect(StatChanged);
@@ -55,7 +55,7 @@ public partial class UILeaderboard : Control
 
 	public override void _ExitTree()
 	{
-		_players.PlayerAdded.Disconnect(AddPlayer);
+		_players.PlayerReady -= AddPlayer;
 		_players.PlayerRemoved.Disconnect(RemovePlayer);
 
 		Stats.StatAdded.Disconnect(StatChanged);

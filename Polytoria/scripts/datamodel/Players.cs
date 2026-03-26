@@ -19,6 +19,12 @@ public sealed partial class Players : Instance
 	private bool _playerCollisionEnabled = true;
 	private bool _useServerAuthority = true;
 
+	/// <summary>
+	/// Player ready internal event
+	/// invoked when player reported a ready event, including one that's already ready
+	/// </summary>
+	internal event Action<Player>? PlayerReady;
+
 	[ScriptProperty]
 	public Player LocalPlayer { get; private set; } = null!;
 
@@ -70,6 +76,11 @@ public sealed partial class Players : Instance
 	{
 		if (PeerIDToPlayer.TryGetValue(peerID, out Player? player)) return player;
 		return null;
+	}
+
+	internal void DispatchPlayerReady(Player plr)
+	{
+		PlayerReady?.Invoke(plr);
 	}
 
 	internal int[] GetPlayerIDArray()

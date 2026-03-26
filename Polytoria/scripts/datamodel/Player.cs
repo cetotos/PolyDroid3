@@ -280,7 +280,7 @@ public sealed partial class Player : NPC
 	[SyncVar(AllowAuthorWrite = true), ScriptProperty]
 	public Truss? ClimbingTruss { get; internal set; }
 
-	[SyncVar]
+	[SyncVar(ServerOnly = true)]
 	public bool IsReady
 	{
 		get => _isReady;
@@ -731,6 +731,7 @@ public sealed partial class Player : NPC
 	// Emit when this player is ready, fired for everyone
 	private void OnPlayerReady()
 	{
+		Root.Players.DispatchPlayerReady(this);
 		SetNetworkAuthority(PeerID);
 		UpdatePlayerCollision();
 		UpdatePlrReady();
