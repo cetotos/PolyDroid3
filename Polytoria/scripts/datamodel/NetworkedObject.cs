@@ -1841,21 +1841,21 @@ public partial class NetworkedObject : IScriptObject
 	internal IEnumerable<PropertyInfo> GetEditableProperties()
 	{
 		return _editablePropertiesCache.GetOrAdd(GetType(), type =>
-		[.. type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.IsDefined(typeof(EditableAttribute)))]
+		[.. type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy).Where(p => p.IsDefined(typeof(EditableAttribute)))]
 		);
 	}
 
 	internal IEnumerable<PropertyInfo> GetScriptProperties()
 	{
 		return _scriptPropertiesCache.GetOrAdd(GetType(), type =>
-		[.. type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => p.IsDefined(typeof(ScriptPropertyAttribute)) || p.IsDefined(typeof(ScriptLegacyPropertyAttribute)))]
+		[.. type.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy).Where(p => p.IsDefined(typeof(ScriptPropertyAttribute)) || p.IsDefined(typeof(ScriptLegacyPropertyAttribute)))]
 		);
 	}
 
 	internal IEnumerable<PropertyInfo> GetSyncProperties()
 	{
 		return _syncPropertiesCache.GetOrAdd(GetType(), type =>
-		[.. type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+		[.. type.GetProperties(BindingFlags.Public | BindingFlags.Instance| BindingFlags.FlattenHierarchy)
 			.Where(p =>
 				// Editable or SyncVar, but not NoSync
 				(p.IsDefined(typeof(EditableAttribute)) ||

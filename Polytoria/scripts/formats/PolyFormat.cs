@@ -548,7 +548,7 @@ public static partial class PolyFormat
 		return _propertyCache.GetValue(type, t =>
 		{
 			Dictionary<string, PropertyInfo> cache = [];
-			PropertyInfo[] properties = t.GetProperties(BindingFlags.Instance | BindingFlags.Public);
+			PropertyInfo[] properties = t.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.FlattenHierarchy);
 			foreach (PropertyInfo prop in properties)
 			{
 				if (prop.IsDefined(typeof(EditableAttribute)) || prop.IsDefined(typeof(SaveIncludeAttribute)))
@@ -570,7 +570,7 @@ public static partial class PolyFormat
 
 		IEnumerable<PropertyInfo> creatorProperties = obj.GetEditableProperties();
 
-		IEnumerable<PropertyInfo> saveIncludes = objType.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+		IEnumerable<PropertyInfo> saveIncludes = objType.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy)
 			.Where(p => p.GetCustomAttribute<SaveIncludeAttribute>() != null);
 
 		HashSet<string> existingNames = [.. creatorProperties.Select(p => p.Name)];
