@@ -46,7 +46,7 @@ public partial class Physical : Dynamic
 	public event Action<CollisionShape3D>? CollisionShapeAdded;
 	public event Action<CollisionShape3D>? CollisionShapeRemoved;
 
-	[Editable, ScriptProperty, DefaultValue(true)]
+	[Editable, ScriptProperty]
 	public virtual bool Anchored
 	{
 		get => _anchored;
@@ -64,7 +64,7 @@ public partial class Physical : Dynamic
 		}
 	}
 
-	[Editable, ScriptProperty, DefaultValue(true)]
+	[Editable, ScriptProperty]
 	public virtual bool CanCollide
 	{
 		get => _canCollide;
