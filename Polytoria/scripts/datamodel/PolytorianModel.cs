@@ -463,6 +463,7 @@ public sealed partial class PolytorianModel : CharacterModel
 		}
 		else if (resource == null)
 		{
+			_bodyPkScene = null;
 			ApplyDefaultBodyPart(HeadMeshInstance, "Head");
 			ApplyDefaultBodyPart(LeftArmMeshInstance, "LeftArm");
 			ApplyDefaultBodyPart(RightArmMeshInstance, "RightArm");
