@@ -40,6 +40,7 @@ public partial class NetworkedObject : IScriptObject
 	private static readonly ConditionalWeakTable<Type, PropertyInfo[]> _syncPropertiesCache = [];
 	private static readonly ConcurrentDictionary<NetworkedObject, Node> _netObjToProxy = new();
 	private static readonly ConcurrentDictionary<Node, NetworkedObject> _proxyToNetObj = new();
+	private static readonly ConcurrentDictionary<Type, Dictionary<string, PropertyInfo?>> _syncPropertyByNameCache = new();
 
 	private static readonly Dictionary<Type, Dictionary<string, int>> _typeRpcIdMap = [];
 	private static readonly Dictionary<Type, Dictionary<int, MethodInfo>> _typeRpcMethodMap = [];
@@ -1341,17 +1342,13 @@ public partial class NetworkedObject : IScriptObject
 
 	internal PropertyInfo? GetSyncProperty(string propName)
 	{
-		IEnumerable<PropertyInfo> props = GetSyncProperties();
+		// Get sync property from cache
+		Dictionary<string, PropertyInfo?> nameCache = _syncPropertyByNameCache
+			.GetOrAdd(GetType(), type =>
+				GetSyncProperties().ToDictionary(p => p.Name, p => (PropertyInfo?)p));
 
-		foreach (PropertyInfo p in props)
-		{
-			if (p.Name == propName)
-			{
-				return p;
-			}
-		}
-
-		return null;
+		nameCache.TryGetValue(propName, out PropertyInfo? result);
+		return result;
 	}
 
 	internal void RecvPropUpdate(string propName, byte[] propValueRaw, long sequence)
