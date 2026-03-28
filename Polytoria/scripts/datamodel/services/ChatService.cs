@@ -22,6 +22,7 @@ public sealed partial class ChatService : Instance
 {
 	private const int AllowedMessagePerWindow = 5;
 	private const int AllowedMessageSecondsWindow = 5;
+	private const int MaxMsgContentLength = 200;
 
 	/// <summary>
 	/// Fire when there's new chat message from player
@@ -80,6 +81,14 @@ public sealed partial class ChatService : Instance
 
 	public void SendChatMessage(string msgContent)
 	{
+		if (msgContent.Length > MaxMsgContentLength)
+		{
+			// Exceeded the maximum message content length
+			NetMessageDeclined();
+			BroadcastMessage($"[!] Your chat message is too long");
+			return;
+		}
+
 		RpcId(1, nameof(NetServerRecvChatMessage), msgContent);
 	}
 
@@ -89,6 +98,7 @@ public sealed partial class ChatService : Instance
 		int peerID = RemoteSenderId;
 		Player? player = Root.Players.GetPlayerFromPeerID(peerID);
 
+		// Check CanChat / Age restricted limitations
 		if (player != null && (!player.CanChat || player.IsAgeRestricted))
 		{
 			RpcId(peerID, nameof(NetMessageDeclined));
@@ -100,6 +110,20 @@ public sealed partial class ChatService : Instance
 
 		if (player != null)
 		{
+			if (!player.IsAdmin)
+			{
+				// Escape BBCode
+				filteredContent = filteredContent.Replace("[", "[lb]");
+			}
+
+			if (filteredContent.Length > MaxMsgContentLength)
+			{
+				// Exceeded the maximum message content length
+				RpcId(peerID, nameof(NetMessageDeclined));
+				UnicastMessage($"[!] Your chat message is too long", player);
+				return;
+			}
+
 			if (!_playerToRateLimiter.TryGetValue(player, out var rateLimit))
 			{
 				_playerToRateLimiter[player] = new(AllowedMessagePerWindow, TimeSpan.FromSeconds(AllowedMessageSecondsWindow));
@@ -112,12 +136,6 @@ public sealed partial class ChatService : Instance
 				RpcId(peerID, nameof(NetMessageDeclined));
 				UnicastMessage($"[!] You need to cool off! Wait {AllowedMessageSecondsWindow} seconds before sending another message", player);
 				return;
-			}
-
-			if (!player.IsAdmin)
-			{
-				// Escape BBCode
-				filteredContent = filteredContent.Replace("[", "[lb]");
 			}
 
 			if (ChatPredicate != null)
@@ -171,7 +189,8 @@ public sealed partial class ChatService : Instance
 	public void BroadcastMessage(string msg)
 	{
 		MessageReceived.Invoke(msg);
-		Rpc(nameof(NetRecvBroadcastMessage), msg);
+		if (HasAuthority)
+			Rpc(nameof(NetRecvBroadcastMessage), msg);
 	}
 
 	[ScriptMethod]

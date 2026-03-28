@@ -116,11 +116,11 @@ public partial class UIChat : Control
 			return;
 		}
 
-		Root.Chat.SendChatMessage(text);
-
 		UIChatLabel newPending = NewChatMessage(Root.Players.LocalPlayer, text);
 		_pendingMessages.Enqueue(newPending);
 		newPending.IsPending = true;
+
+		Root.Chat.SendChatMessage(text);
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
