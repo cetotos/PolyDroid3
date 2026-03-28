@@ -304,6 +304,13 @@ public sealed partial class NetworkPropSync : Instance
 		if (!netObj.IsNetworkReady) return;
 		if (!netObj.Root.IsLoaded) return;
 
+		PropertyInfo? propInfo = netObj.GetSyncProperty(propName);
+
+		if (propInfo == null) return;
+
+		// Check authority
+		if (!CheckPropHasAuthority(propInfo, netObj, NetService.LocalPeerID)) return;
+
 		if (propValue is NetworkedObject nobj)
 		{
 			propValue = nobj.GetObjectRef();
@@ -348,37 +355,42 @@ public sealed partial class NetworkPropSync : Instance
 			// Target property doesn't exist
 			if (propInfo == null) return;
 
-			SyncVarAttribute? sv = propInfo.GetCustomAttribute<SyncVarAttribute>();
-
-			bool hasAuthority = false;
-
-			if (sv != null)
-			{
-				if (sv.AllowAuthorWrite && netObj.NetworkAuthority == peerID)
-				{
-					// Has authority from AllowAuthorWrite
-					hasAuthority = true;
-				}
-
-				if (sv.ServerOnly && peerID != 1)
-				{
-					// Disallow if from non server
-					hasAuthority = false;
-				}
-			}
-			else
-			{
-				// Check normally via NetPropAuthority
-				hasAuthority = CheckAuthority(peerID, netObj.NetPropAuthority);
-			}
-
-			if (hasAuthority)
+			if (CheckPropHasAuthority(propInfo, netObj, peerID))
 			{
 				// Mark -1 to ignore sequence
 				netObj.RecvPropUpdate(propName, propValueRaw, -1);
 				_batchBroadcasts.Add(new() { NetID = netObj.NetworkedObjectID, PropName = propName, PropValueRaw = propValueRaw, IsUnreliable = isUnreliable, ExcludePeer = peerID, Sequence = -1 });
 			}
 		}
+	}
+
+	public static bool CheckPropHasAuthority(PropertyInfo propInfo, NetworkedObject netObj, int peerID)
+	{
+		SyncVarAttribute? sv = propInfo.GetCustomAttribute<SyncVarAttribute>();
+
+		bool hasAuthority = false;
+
+		if (sv != null)
+		{
+			if (sv.AllowAuthorWrite && netObj.NetworkAuthority == peerID)
+			{
+				// Has authority from AllowAuthorWrite
+				hasAuthority = true;
+			}
+
+			if (sv.ServerOnly && peerID != 1)
+			{
+				// Disallow if from non server
+				hasAuthority = false;
+			}
+		}
+		else
+		{
+			// Check normally via NetPropAuthority
+			hasAuthority = CheckAuthority(peerID, netObj.NetPropAuthority);
+		}
+
+		return hasAuthority;
 	}
 
 	[NetRpc(AuthorityMode.Authority, TransferMode = TransferMode.Reliable, TransferChannel = 1)]
