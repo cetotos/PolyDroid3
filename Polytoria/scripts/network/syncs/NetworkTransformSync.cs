@@ -205,6 +205,9 @@ public partial class NetworkTransformSync : Instance
 		// Ignore in creator
 		if (NetService.NetworkMode == NetworkModeEnum.Creator) return;
 
+		// Check authority
+		if (!CheckDynAuthor(dyn, NetService.LocalPeerID)) return;
+
 		Transform3D current = dyn.GetLocalTransform();
 		string objID = dyn.NetworkedObjectID;
 
