@@ -53,7 +53,22 @@ public partial class Animator : Instance
 		get => _currentAnimation;
 		set
 		{
+			string oldA = _currentAnimation;
 			_currentAnimation = value;
+
+			if (oldA != _currentAnimation)
+			{
+				if (_currentAnimation == "")
+				{
+					// Stop animation if is empty
+					InternalStopAnimation();
+				}
+				else
+				{
+					// Play new animation
+					InternalPlayAnimation(_currentAnimation);
+				}
+			}
 			OnPropertyChanged();
 		}
 	}
