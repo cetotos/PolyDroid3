@@ -290,6 +290,11 @@ public sealed partial class ClientEntry : Node3D
 		{
 			Engine.MaxFps = 15;
 		}
+		else if (OS.HasFeature("potatofps"))
+		{
+			// Activate Potato Mode
+			Engine.MaxFps = 2;
+		}
 
 		if (isServer)
 		{
