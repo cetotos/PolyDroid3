@@ -94,13 +94,18 @@ public partial class UIChat : Control
 	private void SendMessage(string text)
 	{
 		if (!Visible) return;
-		if (text.Trim() == "")
+
+		// Release focus from chat field now
+		_chatField.ReleaseFocus();
+
+		if (string.IsNullOrWhiteSpace(text))
 		{
+			// null/whitespace, return
 			return;
 		}
 		_chatField.Text = "";
-		_chatField.ReleaseFocus();
 
+		// Handle commands
 		if (text.StartsWith('/'))
 		{
 			string[] cmd = text.Split("/");
