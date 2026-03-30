@@ -39,19 +39,12 @@ public class DebugServer
 		PT.Print($"-- Debug server started at {localAddr}:{Port} --");
 	}
 
-	private static async void ServerMainLoop()
+	private static async Task ServerMainLoop()
 	{
-		while (true)
+		while (ServerStarted)
 		{
-			TcpClient client = _server.AcceptTcpClient();
-
-			if (!ServerStarted)
-			{
-				break;
-			}
-
+			TcpClient client = await _server.AcceptTcpClientAsync();
 			PT.Print("Debug client connected");
-
 			_ = Task.Run(() => HandleClient(client));
 		}
 	}
@@ -64,19 +57,13 @@ public class DebugServer
 			NetworkStream stream = client.GetStream();
 			byte[] buffer = new byte[1024];
 
-			while (true)
+			while (ServerStarted)
 			{
-				// Read data from client
-				int bytesRead = stream.Read(buffer);
-
-				if (!ServerStarted)
-				{
-					break;
-				}
+				int bytesRead = await stream.ReadAsync(buffer);
 
 				if (bytesRead == 0)
 				{
-					continue;
+					break; // Client disconnected gracefully
 				}
 
 				IDebugMessage? msg = SerializeUtils.Deserialize<IDebugMessage>(buffer);
