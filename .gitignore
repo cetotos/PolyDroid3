@@ -22,7 +22,7 @@ obj/
 *.csproj.user
 
 # Backup/old project files
-/*.csproj.old*
+*.csproj.old*
 
 # Test result output
 TestResults/
