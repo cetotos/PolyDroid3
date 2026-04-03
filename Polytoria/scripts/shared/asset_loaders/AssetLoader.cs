@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 using Godot;
-using Polytoria.Shared.Providers.AssetLoaders;
+using Polytoria.Providers.AssetLoaders;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;

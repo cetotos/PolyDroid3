@@ -6,9 +6,10 @@ using Polytoria.Shared.AssetLoaders;
 using System;
 using System.Threading.Tasks;
 
-namespace Polytoria.Shared.Providers.AssetLoaders;
+namespace Polytoria.Providers.AssetLoaders;
 
 public interface IAssetProvider : IDisposable
 {
 	Task<CacheItem> LoadResource(CacheItem item);
+	string GetAssetServeURL(uint id, ResourceType itemType);
 }

@@ -6,12 +6,13 @@ using Godot;
 #if CREATOR
 using Polytoria.Creator.Utils;
 #endif
+using Polytoria.Shared;
 using Polytoria.Shared.AssetLoaders;
 using System;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
-namespace Polytoria.Shared.Providers.AssetLoaders;
+namespace Polytoria.Providers.AssetLoaders;
 
 public class PTAssetProvider : IAssetProvider
 {
@@ -27,21 +28,7 @@ public class PTAssetProvider : IAssetProvider
 		_client.DefaultRequestHeaders["Authorization"] = PolyCreatorAPI.Token;
 #endif
 
-		string url = item.Type switch
-		{
-			ResourceType.Mesh => ServeMeshURL + item.ID,
-			ResourceType.Asset => ServeURL + item.ID + "/asset",
-			ResourceType.Decal => ServeURL + item.ID + "/decal",
-			ResourceType.Audio => ServeAudioURL + item.ID,
-			ResourceType.AssetThumbnail => ServeURL + item.ID + "/assetThumbnail",
-			ResourceType.PlaceThumbnail => ServeURL + item.ID + "/placeThumbnail",
-			ResourceType.PlaceIcon => ServeURL + item.ID + "/placeIcon",
-			ResourceType.UserThumbnail => ServeURL + item.ID + "/userAvatar",
-			ResourceType.UserHeadshot => ServeURL + item.ID + "/userAvatarHeadshot",
-			ResourceType.GuildThumbnail => ServeURL + item.ID + "/guildIcon",
-			ResourceType.GuildBanner => ServeURL + item.ID + "/guildBanner",
-			_ => throw new NotImplementedException()
-		};
+		string url = GetAssetServeURL(item.ID, item.Type);
 
 		ServeResponse response = await _client.GetFromJsonAsync(url, ServeResponseGenerationContext.Default.ServeResponse);
 		byte[] buffer = await _client.GetByteArrayAsync(response.Url);
@@ -106,6 +93,27 @@ public class PTAssetProvider : IAssetProvider
 				}
 			default: throw new NotImplementedException();
 		}
+	}
+
+	public string GetAssetServeURL(uint id, ResourceType itemType)
+	{
+		string url = itemType switch
+		{
+			ResourceType.Mesh => ServeMeshURL + id,
+			ResourceType.Asset => ServeURL + id + "/asset",
+			ResourceType.Decal => ServeURL + id + "/decal",
+			ResourceType.Audio => ServeAudioURL + id,
+			ResourceType.AssetThumbnail => ServeURL + id + "/assetThumbnail",
+			ResourceType.PlaceThumbnail => ServeURL + id + "/placeThumbnail",
+			ResourceType.PlaceIcon => ServeURL + id + "/placeIcon",
+			ResourceType.UserThumbnail => ServeURL + id + "/userAvatar",
+			ResourceType.UserHeadshot => ServeURL + id + "/userAvatarHeadshot",
+			ResourceType.GuildThumbnail => ServeURL + id + "/guildIcon",
+			ResourceType.GuildBanner => ServeURL + id + "/guildBanner",
+			_ => throw new NotImplementedException()
+		};
+
+		return url;
 	}
 
 	public void Dispose()
