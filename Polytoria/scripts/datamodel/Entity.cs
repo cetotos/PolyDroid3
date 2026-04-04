@@ -172,6 +172,13 @@ public abstract partial class Entity : Physical
 		base.Init();
 	}
 
+	public override void PreDelete()
+	{
+		// Unregister spawnpoint on delete
+		Root.Environment.UnregisterSpawnPoint(this);
+		base.PreDelete();
+	}
+
 	public override void PhysicsProcess(double delta)
 	{
 		if (NetTransformAuthority == Root.Network.LocalPeerID)
