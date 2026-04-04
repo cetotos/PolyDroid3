@@ -10,7 +10,7 @@ namespace Polytoria.Datamodel;
 [Instantiable]
 public partial class UIView : UIField
 {
-	private StyleBoxFlat _styleBox = new();
+	private StyleBoxFlat _styleBox = null!;
 	private Color _borderColor;
 	private Color _color;
 	private float _borderWidth;
@@ -77,6 +77,7 @@ public partial class UIView : UIField
 
 	public override void Init()
 	{
+		_styleBox = new() { AntiAliasing = true, AntiAliasingSize = 1 };
 		NodeControl.AddThemeStyleboxOverride("panel", _styleBox);
 		BorderColor = new(0, 0, 0);
 		Color = new(1, 1, 1);
