@@ -975,7 +975,7 @@ public sealed partial class Player : NPC
 		if (fromPeer != 1)
 		{
 			// Prevent scaling from client
-			Vector3 existingScale = GDNode3D.Transform.Basis.Scale;
+			Vector3 existingScale = GetLocalTransform().Basis.Scale;
 			newTransform.Basis = newTransform.Basis.Orthonormalized().Scaled(existingScale);
 		}
 		return newTransform;

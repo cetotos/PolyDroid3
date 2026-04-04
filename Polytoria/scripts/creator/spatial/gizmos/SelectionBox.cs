@@ -131,7 +131,7 @@ public partial class SelectionBox : Node
 		if (isDragging && _cachedGlobalBounds.HasValue)
 		{
 			// Fast path: offset the cached bounds
-			Vector3 currentPosition = Target.GDNode3D.GlobalPosition;
+			Vector3 currentPosition = Target.GetGlobalPosition();
 			Vector3 positionDelta = currentPosition - _cachedTargetPosition;
 
 			globalBounds = new Aabb(
@@ -147,7 +147,7 @@ public partial class SelectionBox : Node
 			// Full recalculation
 			globalBounds = Target.CalculateBounds();
 			_cachedGlobalBounds = globalBounds;
-			_cachedTargetPosition = Target.GDNode3D.GlobalPosition;
+			_cachedTargetPosition = Target.GetGlobalPosition();
 		}
 
 		Vector3 size = globalBounds.Size + Vector3.One * 0.005f;

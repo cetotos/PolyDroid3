@@ -11,7 +11,7 @@ namespace Polytoria.Datamodel;
 [Instantiable]
 public partial class Part : Entity
 {
-	private MeshInstance3D _mesh = null!;
+	private MeshInstance3D? _mesh;
 	private CollisionShape3D _collider = null!;
 	private Material _meshMaterial = null!;
 	private ShapeEnum _shape;
@@ -21,8 +21,24 @@ public partial class Part : Entity
 	private bool _castShadows;
 	private Timer? _seperatedTimer;
 
+	private Node3D _nRemoteAt = null!; // Remote collider proxy
+
 	public bool IsMeshSeperated => _isSeperateMesh;
 	public int BridgeID = -1;
+
+	private Vector3 _partSize = Vector3.One;
+
+	// NOTE: Part size is local
+	internal Vector3 PartSize
+	{
+		get => _partSize;
+		set
+		{
+			_partSize = value;
+			_mesh?.Scale = _partSize;
+			_nRemoteAt?.Scale = _partSize;
+		}
+	}
 
 	public override void EnterTree()
 	{
@@ -44,6 +60,9 @@ public partial class Part : Entity
 	{
 		base.Init();
 		GDNode3D.AddChild(_collider = new(), false);
+		GDNode3D.AddChild(_nRemoteAt = new(), false);
+		_collider.SetMeta("_remote_at", _nRemoteAt);
+		_nRemoteAt.Rotation = Vector3.Zero;
 
 		if (OS.HasFeature("debug-face"))
 		{
@@ -113,6 +132,8 @@ public partial class Part : Entity
 		}
 		*/
 
+		_mesh.Scale = _partSize;
+
 		UpdateShape();
 		UpdateMaterial();
 		UpdateColor();
@@ -137,7 +158,7 @@ public partial class Part : Entity
 		}
 		_isSeperateMesh = false;
 		Root.Bridge.SeparatedPartCount--;
-		_mesh.Free();
+		_mesh?.Free();
 	}
 
 	[Editable, ScriptProperty, DefaultValue(ShapeEnum.Brick)]
@@ -211,7 +232,7 @@ public partial class Part : Entity
 		(Godot.Mesh mesh, Shape3D shape) = Globals.LoadShape(_shape.ToString());
 		if (_isSeperateMesh)
 		{
-			_mesh.Mesh = mesh;
+			_mesh?.Mesh = mesh;
 			_collider.Shape = shape;
 		}
 		else
@@ -237,7 +258,7 @@ public partial class Part : Entity
 					mat.Transparency = sm.Transparency;
 				}
 			}
-			_mesh.MaterialOverride = _meshMaterial = temp;
+			_mesh?.MaterialOverride = _meshMaterial = temp;
 		}
 	}
 
@@ -260,7 +281,7 @@ public partial class Part : Entity
 	{
 		if (_isSeperateMesh)
 		{
-			_mesh.CastShadow = _castShadows ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off;
+			_mesh?.CastShadow = _castShadows ? GeometryInstance3D.ShadowCastingSetting.On : GeometryInstance3D.ShadowCastingSetting.Off;
 		}
 	}
 

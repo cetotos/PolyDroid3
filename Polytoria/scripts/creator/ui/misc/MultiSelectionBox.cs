@@ -60,12 +60,13 @@ public partial class MultiSelectionBox : Control
 			if (item is Dynamic dyn)
 			{
 				var camera = Overlay.World.CreatorContext.Freelook.Camera3D;
+				var globalPos = dyn.GetGlobalPosition();
 
 				// Check if position is within frustum
-				if (!camera.IsPositionInFrustum(dyn.GDNode3D.GlobalPosition))
+				if (!camera.IsPositionInFrustum(globalPos))
 					continue;
 
-				if (box.HasPoint(camera.UnprojectPosition(dyn.GDNode3D.GlobalPosition)))
+				if (box.HasPoint(camera.UnprojectPosition(globalPos)))
 				{
 					Instance? top = dyn;
 					if (!altPressed)

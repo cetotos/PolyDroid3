@@ -720,7 +720,7 @@ public partial class Physical : Dynamic
 	private bool IsTouchedValid(Player plr)
 	{
 		// Check if player position is in vaild range
-		return GetSelfBound().Grow(TouchedGapCheck).HasPoint(plr.GDNode3D.GlobalPosition);
+		return GetSelfBound().Grow(TouchedGapCheck).HasPoint(plr.GetGlobalPosition());
 	}
 
 	[NetRpc(AuthorityMode.Any, TransferMode = TransferMode.Reliable)]

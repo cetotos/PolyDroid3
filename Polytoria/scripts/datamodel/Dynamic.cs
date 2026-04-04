@@ -45,11 +45,11 @@ public partial class Dynamic : Instance
 	{
 		get
 		{
-			return GDNode3D.GlobalPosition.Flip();
+			return GetGlobalPosition().Flip();
 		}
 		set
 		{
-			GDNode3D.GlobalPosition = value.Flip();
+			SetGlobalPosition(value.Flip());
 			if (AutoUpdateNetTransform)
 			{
 				UpdateNetTransformReliable();
@@ -63,7 +63,7 @@ public partial class Dynamic : Instance
 	{
 		get
 		{
-			Basis globalBasis = GDNode3D.GlobalTransform.Basis;
+			Basis globalBasis = GetGlobalTransform().Basis;
 			Quaternion q = globalBasis.GetRotationQuaternion();
 
 			return MathUtils.Vector3RadToDeg(q.GetEuler()).FlipEuler();
@@ -91,19 +91,30 @@ public partial class Dynamic : Instance
 				Mathf.Max(value.Z, MinScale)
 			);
 
-			if (Parent is Dynamic p && p.GDNode3D.IsInsideTree())
-			{
-				Vector3 parentScale = p.GDNode3D.GlobalTransform.Basis.Scale;
-				GDNode3D.Scale = scale / parentScale;
-			}
-			else
-			{
-				GDNode3D.Scale = scale;
-			}
+			Vector3 parentScale = GetParentScale();
 
 			if (this is Part part)
 			{
+				if (Parent is Dynamic)
+				{
+					part.PartSize = scale;
+				}
+				else
+				{
+					part.PartSize = scale / parentScale; // Part size is local
+				}
 				part.RefreshUV1();
+			}
+			else
+			{
+				if (Parent is Dynamic)
+				{
+					GDNode3D.Scale = scale / parentScale;
+				}
+				else
+				{
+					GDNode3D.Scale = scale;
+				}
 			}
 			if (AutoUpdateNetTransform)
 			{
@@ -118,11 +129,11 @@ public partial class Dynamic : Instance
 	{
 		get
 		{
-			return GDNode3D.Position.Flip();
+			return GetLocalPosition().Flip();
 		}
 		set
 		{
-			GDNode3D.Position = value.Flip();
+			SetLocalPosition(value.Flip());
 			if (AutoUpdateNetTransform)
 			{
 				UpdateNetTransformReliable();
@@ -152,18 +163,32 @@ public partial class Dynamic : Instance
 	[Editable, ScriptProperty, CloneIgnore, NoSync]
 	public Vector3 LocalSize
 	{
-		get => GDNode3D.Scale;
+		get
+		{
+			if (this is Part part)
+			{
+				return part.PartSize;
+			}
+			return GDNode3D.Scale;
+		}
 		set
 		{
-			GDNode3D.Scale = new Vector3(
+			Vector3 scale = new(
 				Mathf.Max(value.X, MinScale),
 				Mathf.Max(value.Y, MinScale),
 				Mathf.Max(value.Z, MinScale)
 			);
 
+			Vector3 parentScale = GetParentScale();
+
 			if (this is Part part)
 			{
+				part.PartSize = scale * parentScale;
 				part.RefreshUV1();
+			}
+			else
+			{
+				GDNode3D.Scale = scale;
 			}
 			if (AutoUpdateNetTransform)
 			{
@@ -176,7 +201,7 @@ public partial class Dynamic : Instance
 	[ScriptProperty, CloneIgnore, NoSync]
 	public Quaternion Quaternion
 	{
-		get => GDNode3D.GlobalBasis.GetRotationQuaternion().Flip();
+		get => GetGlobalTransform().Basis.GetRotationQuaternion().Flip();
 		set
 		{
 			Quaternion q = value.Flip();
@@ -188,7 +213,7 @@ public partial class Dynamic : Instance
 	[ScriptProperty, CloneIgnore, NoSync]
 	public Quaternion LocalQuaternion
 	{
-		get => GDNode3D.Basis.GetRotationQuaternion().Flip();
+		get => GetLocalTransform().Basis.GetRotationQuaternion().Flip();
 		set
 		{
 			Quaternion q = value.Flip();
@@ -693,26 +718,94 @@ public partial class Dynamic : Instance
 		base.HiddenChanged(to);
 	}
 
+	internal Vector3 GetGlobalPosition()
+	{
+		return GetGlobalTransform().Origin;
+	}
+
+	internal void SetGlobalPosition(Vector3 to)
+	{
+		var t = GetGlobalTransform();
+		SetGlobalTransform(new Transform3D(t.Basis, to));
+	}
+
+	internal Vector3 GetLocalPosition()
+	{
+		return GetLocalTransform().Origin;
+	}
+
+	internal void SetLocalPosition(Vector3 to)
+	{
+		var t = GetLocalTransform();
+		SetLocalTransform(new Transform3D(t.Basis, to));
+	}
+
 	internal Transform3D GetGlobalTransform()
 	{
-		return GDNode3D.GlobalTransform;
+		var t = GDNode3D.GlobalTransform;
+		if (this is Part part)
+		{
+			var rotation = t.Basis.Orthonormalized();
+			var scaledBasis = new Basis(
+				rotation.Column0 * part.PartSize.X,
+				rotation.Column1 * part.PartSize.Y,
+				rotation.Column2 * part.PartSize.Z
+			);
+			return new Transform3D(scaledBasis, t.Origin);
+		}
+		return t;
 	}
 
 	internal Transform3D GetLocalTransform()
 	{
-		return GDNode3D.Transform;
+		var t = GDNode3D.Transform;
+		if (this is Part part)
+		{
+			var scale = part.PartSize * GetParentScale();
+			var rotation = t.Basis.Orthonormalized();
+			var scaledBasis = new Basis(
+				rotation.Column0 * scale.X,
+				rotation.Column1 * scale.Y,
+				rotation.Column2 * scale.Z
+			);
+			return new Transform3D(scaledBasis, t.Origin);
+		}
+		return t;
 	}
 
 	internal void SetGlobalTransform(Transform3D to)
 	{
-		GDNode3D.GlobalTransform = to;
+		if (this is Part part)
+		{
+			part.PartSize = (Parent is Dynamic) ? to.Basis.Scale : to.Basis.Scale / GetParentScale();
+			GDNode3D.GlobalTransform = new Transform3D(to.Basis.Orthonormalized(), to.Origin);
+		}
+		else
+		{
+			GDNode3D.GlobalTransform = to;
+		}
 		UpdateCurrentTransformCache();
 	}
 
 	internal void SetLocalTransform(Transform3D to)
 	{
-		GDNode3D.Transform = to;
+		if (this is Part part)
+		{
+			part.PartSize = (Parent is Dynamic) ? to.Basis.Scale : to.Basis.Scale / GetParentScale();
+			GDNode3D.Transform = new Transform3D(to.Basis.Orthonormalized(), to.Origin);
+		}
+		else
+		{
+			GDNode3D.Transform = to;
+		}
 		UpdateCurrentTransformCache();
+	}
+
+	private Vector3 GetParentScale()
+	{
+		if (Parent is Dynamic p && p.GDNode3D.IsInsideTree())
+			return p.GetGlobalTransform().Basis.Scale;
+		return Vector3.One;
 	}
 
 	internal void ForceUpdateTransform()
@@ -851,7 +944,7 @@ public partial class Dynamic : Instance
 			}
 		}
 
-		return bounds ?? new(GDNode3D.GlobalPosition, Vector3.One * 0.5f);
+		return bounds ?? new(GetGlobalPosition(), Vector3.One * 0.5f);
 	}
 
 	public virtual Aabb GetSelfBound() { return default; }

@@ -55,7 +55,7 @@ public partial class BodyPosition : Instance
 		{
 			if (Parent is NPC npc)
 			{
-				if (npc.GDNode3D.GlobalPosition.DistanceTo(gdPos) > AcceptanceDistance)
+				if (npc.GetGlobalPosition().DistanceTo(gdPos) > AcceptanceDistance)
 				{
 					Vector3 currentPos = npc.Position.Flip();
 					Vector3 direction = (TargetPosition - currentPos).Normalized();

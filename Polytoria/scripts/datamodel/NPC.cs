@@ -574,7 +574,7 @@ public partial class NPC : Physical
 
 		if (MoveTarget != null)
 		{
-			walkTarget = MoveTarget.GDNode3D.GlobalPosition;
+			walkTarget = MoveTarget.GetGlobalPosition();
 		}
 
 		if (_navAgent != null)
@@ -584,11 +584,11 @@ public partial class NPC : Physical
 
 		if (walkTarget.HasValue)
 		{
-			Vector3 velo = GDNode3D.GlobalPosition.DirectionTo(walkTarget.Value);
+			Vector3 velo = GetGlobalPosition().DirectionTo(walkTarget.Value);
 			CharacterVelocity = new(velo.X * WalkSpeed, CharacterVelocity.Y, velo.Z * WalkSpeed);
 			GDNode3D.GlobalRotationDegrees = new Vector3(Rotation.X, -Mathf.RadToDeg(Mathf.LerpAngle(Mathf.DegToRad(Rotation.Y), Mathf.Atan2(-CharacterVelocity.X, CharacterVelocity.Z), (float)(delta * BodyRotateLerp))), Rotation.Z);
 
-			float distanceToTarget = GDNode3D.GlobalPosition.DistanceTo(walkTarget.Value);
+			float distanceToTarget = GetGlobalPosition().DistanceTo(walkTarget.Value);
 
 			if (distanceToTarget > 0.5f)
 			{

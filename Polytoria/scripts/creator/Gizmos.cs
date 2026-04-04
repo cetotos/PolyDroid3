@@ -588,11 +588,11 @@ public sealed partial class Gizmos : Node
 
 		foreach (Dynamic item in Selected)
 		{
-			Vector3 relativePos = item.GDNode3D.GlobalPosition - pivotPosition;
+			Vector3 relativePos = item.GetGlobalPosition() - pivotPosition;
 			Transform3D rotation = Transform3D.Identity.Rotated(Vector3.Up, rotateAngle);
 			Vector3 rotatedPos = rotation * relativePos;
 
-			item.GDNode3D.GlobalPosition = pivotPosition + rotatedPos;
+			item.SetGlobalPosition(pivotPosition + rotatedPos);
 			item.GDNode3D.Rotation += new Vector3(0, rotateAngle, 0);
 
 			if (_selectionBoxes.TryGetValue(item, out var box)) box.InvalidateBoundCache();
@@ -619,10 +619,10 @@ public sealed partial class Gizmos : Node
 
 		foreach (Dynamic item in Selected)
 		{
-			Vector3 relativePos = item.GDNode3D.GlobalPosition - pivotPosition;
+			Vector3 relativePos = item.GetGlobalPosition() - pivotPosition;
 			Transform3D rotation = Transform3D.Identity.Rotated(tiltAxis, tiltAngle);
 			Vector3 rotatedPos = rotation * relativePos;
-			item.GDNode3D.GlobalPosition = pivotPosition + rotatedPos;
+			item.SetGlobalPosition(pivotPosition + rotatedPos);
 
 			// Apply rotation to the object itself
 			item.GDNode3D.Rotate(tiltAxis, tiltAngle);
@@ -731,7 +731,7 @@ public sealed partial class Gizmos : Node
 				if (Mathf.Abs(hitNormal.Z) > 0.5f)
 					surfacePoint.Z = hitNormal.Z > 0 ? bounds.Position.Z : bounds.End.Z;
 
-				Vector3 pivotOffset = item.GDNode3D.GlobalPosition - surfacePoint;
+				Vector3 pivotOffset = item.GetGlobalPosition() - surfacePoint;
 
 				Vector3 snappedHitPos = new(
 					Mathf.Abs(hitNormal.X) > 0.9f ? pos.X : Mathf.Snapped(pos.X, snapAmount),
@@ -739,7 +739,7 @@ public sealed partial class Gizmos : Node
 					Mathf.Abs(hitNormal.Z) > 0.9f ? pos.Z : Mathf.Snapped(pos.Z, snapAmount)
 				);
 
-				item.GDNode3D.GlobalPosition = snappedHitPos + pivotOffset;
+				item.SetGlobalPosition(snappedHitPos + pivotOffset);
 				item.UpdateCurrentTransformCache();
 			}
 		}
