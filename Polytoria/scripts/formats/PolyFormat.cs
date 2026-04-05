@@ -906,7 +906,7 @@ public static partial class PolyFormat
 		typeof(ColorJsonConverter),
 		typeof(ColorSeriesJsonConverter),
 		typeof(NumberRangeJsonConverter)
-		])]
+		], NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals)]
 	[JsonSerializable(typeof(string))]
 	[JsonSerializable(typeof(bool))]
 	[JsonSerializable(typeof(byte))]
