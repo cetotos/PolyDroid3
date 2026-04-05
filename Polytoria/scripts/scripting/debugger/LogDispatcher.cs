@@ -64,7 +64,7 @@ public partial class LogDispatcher : NetworkedObject
 
 	public void LogError(Datamodel.Script from, string content)
 	{
-		PT.PrintV($"[Lua] {from.NetworkPath} {content}");
+		PT.PrintErrV($"[Lua] {from.NetworkPath} {content}");
 		DispatchLog(new()
 		{
 			ID = Guid.NewGuid().ToString(),
