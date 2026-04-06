@@ -585,7 +585,6 @@ public class LuaMetatable : LuaObject
 			// Allow nil in argument on some metamethods
 			// Some callers incorrectly pass nil to metamethods, unsupporting metamethods will have nil stripped from their argument list.
 			bool allowNilInArg = attr.Metamethod is
-				ScriptObjectMetamethod.ToString or
 				ScriptObjectMetamethod.Call or
 				ScriptObjectMetamethod.Index or
 				ScriptObjectMetamethod.NewIndex or
