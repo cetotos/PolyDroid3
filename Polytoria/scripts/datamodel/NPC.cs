@@ -978,7 +978,7 @@ public partial class NPC : Physical
 	{
 		Tool? tool = (Tool?)Root.GetNetObjectFromID(id);
 
-		if (tool != null)
+		if (tool != null && tool.Droppable)
 		{
 			tool.Reparent(Root.Environment);
 			InternalDetachTool();
