@@ -105,7 +105,7 @@ public partial class GradientImageAsset : ImageAsset
 		}
 	}
 
-	public override void Init()
+	public override void InitOverrides()
 	{
 		Series = ColorSeries.New(new(1, 1, 1), new(0, 0, 0));
 		Fill = GradientImageFillEnum.Linear;
@@ -113,7 +113,8 @@ public partial class GradientImageAsset : ImageAsset
 		FillTo = new(1, 0);
 		Width = 64;
 		Height = 64;
-		base.Init();
+
+		base.InitOverrides();
 	}
 
 	public static void RegisterAsset()

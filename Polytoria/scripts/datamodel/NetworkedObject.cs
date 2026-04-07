@@ -6,6 +6,7 @@ using Godot;
 using Humanizer;
 using Polytoria.Attributes;
 using Polytoria.Datamodel.Data;
+using Polytoria.Datamodel.Interfaces;
 using Polytoria.Datamodel.Resources;
 using Polytoria.Formats;
 using Polytoria.Networking;
@@ -275,6 +276,7 @@ public partial class NetworkedObject : IScriptObject
 	/// Set to false if prop ready should not be called on parent set (eg. when cloning)
 	/// </summary>
 	internal bool AutoInvokeReadyOnParent { get; set; } = true;
+	internal bool CallInitOverrides { get; set; } = true;
 
 	internal bool AutoReplicate { get; set; } = true;
 
@@ -576,7 +578,10 @@ public partial class NetworkedObject : IScriptObject
 			EnterTree();
 			Init();
 			InitDefaultValues();
-			InitOverrides();
+
+			if (CallInitOverrides)
+				InitOverrides();
+
 			if (AutoInvokeReady)
 			{
 				InvokePropReady();
@@ -1500,6 +1505,9 @@ public partial class NetworkedObject : IScriptObject
 			}
 		}
 
+		// Don't call init overrides, copy properties will overrides
+		clonedRoot.CallInitOverrides = false;
+
 		CopyProperties(this, clonedRoot);
 
 		// Reassign model root
@@ -1577,6 +1585,11 @@ public partial class NetworkedObject : IScriptObject
 						string origin = from.GetPathTo(i);
 						NetworkedObject? newObj = to.GetNetObj(origin);
 						prop.SetValue(to, newObj);
+					}
+					// Handle IData copy
+					else if (val is IData d)
+					{
+						prop.SetValue(to, d.Clone());
 					}
 					else
 					{

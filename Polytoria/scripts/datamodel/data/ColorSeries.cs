@@ -4,13 +4,14 @@
 
 using Godot;
 using Polytoria.Attributes;
+using Polytoria.Datamodel.Interfaces;
 using Polytoria.Scripting;
 using System;
 using System.Collections.Generic;
 
 namespace Polytoria.Datamodel.Data;
 
-public readonly struct ColorSeries : IScriptObject
+public readonly struct ColorSeries : IScriptObject, IData
 {
 	internal struct ColorPoint(float offset, Color color)
 	{
@@ -261,5 +262,16 @@ public readonly struct ColorSeries : IScriptObject
 	public override readonly int GetHashCode()
 	{
 		return HashCode.Combine(points);
+	}
+
+	public object Clone()
+	{
+		ColorSeries c = new();
+		c.points.Clear();
+		foreach (ColorPoint p in points)
+		{
+			c.points.Add(p);
+		}
+		return c;
 	}
 }

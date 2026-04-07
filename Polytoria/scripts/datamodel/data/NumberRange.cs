@@ -4,12 +4,13 @@
 
 using Godot;
 using Polytoria.Attributes;
+using Polytoria.Datamodel.Interfaces;
 using Polytoria.Scripting;
 using System;
 
 namespace Polytoria.Datamodel.Data;
 
-public struct NumberRange : IScriptObject
+public struct NumberRange : IScriptObject, IData
 {
 	private float _min = 0;
 	private float _max = 0;
@@ -59,5 +60,10 @@ public struct NumberRange : IScriptObject
 	public override readonly int GetHashCode()
 	{
 		return HashCode.Combine(Min, Max);
+	}
+
+	public object Clone()
+	{
+		return new NumberRange() { Min = Min, Max = Max };
 	}
 }
