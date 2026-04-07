@@ -69,6 +69,7 @@ public sealed partial class Tool : PhysicalModel
 		set
 		{
 			_holder = value;
+			UpdateHandHold();
 			OnPropertyChanged();
 		}
 	}
@@ -112,7 +113,7 @@ public sealed partial class Tool : PhysicalModel
 	public override void EnterTree()
 	{
 		base.EnterTree();
-		if (Parent is not Inventory && Parent is not Player)
+		if (Parent is not Inventory && Parent is not NPC)
 		{
 			CanCollide = true;
 			Anchored = false;

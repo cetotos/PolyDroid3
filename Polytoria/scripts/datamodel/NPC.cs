@@ -452,11 +452,6 @@ public partial class NPC : Physical
 
 	public override void Ready()
 	{
-		if (IsSitting && SittingIn != null)
-		{
-			InternalSit(SittingIn);
-		}
-
 		if (Root.IsLegacyWorld && Character == null && !PendingProps.Contains(nameof(Character)))
 		{
 			// Create default character on legacy world. If character is not set
@@ -500,6 +495,11 @@ public partial class NPC : Physical
 					_pendingFaceID = null;
 				}
 			}
+		}
+
+		if (IsSitting && SittingIn != null)
+		{
+			InternalSit(SittingIn);
 		}
 
 		if (HoldingTool != null)
@@ -830,9 +830,9 @@ public partial class NPC : Physical
 	}
 
 	[NetRpc(AuthorityMode.Server, TransferMode = TransferMode.Reliable, CallLocal = true)]
-	private void NetSit(string seatID)
+	private async void NetSit(string seatID)
 	{
-		Seat? seat = (Seat?)Root.GetNetObjectFromID(seatID);
+		Seat? seat = (Seat?)await Root.WaitForNetObjectAsync(seatID);
 
 		if (seat != null)
 		{
@@ -886,13 +886,14 @@ public partial class NPC : Physical
 				DropTool();
 			}
 		}
+
 		Rpc(nameof(NetEquipTool), tool.NetworkedObjectID);
 	}
 
 	[NetRpc(AuthorityMode.Authority, TransferMode = TransferMode.Reliable, CallLocal = true)]
-	private void NetEquipTool(string networkID)
+	private async void NetEquipTool(string networkID)
 	{
-		NetworkedObject? netObj = Root.GetNetObjectFromID(networkID);
+		NetworkedObject? netObj = await Root.WaitForNetObjectAsync(networkID);
 
 		if (netObj == null) { return; }
 
@@ -926,9 +927,9 @@ public partial class NPC : Physical
 		{
 			_toolRemoteTransform.QueueFree();
 		}
+
 		_toolRemoteTransform = new()
 		{
-			Name = "GearAttachment",
 			UpdatePosition = true,
 			UpdateRotation = true,
 			UpdateScale = false
@@ -937,7 +938,7 @@ public partial class NPC : Physical
 		if (Character != null)
 		{
 			Dynamic attachment = Character.GetAttachment(CharacterModel.CharacterAttachmentEnum.HandRight);
-			attachment.GDNode.AddChild(_toolRemoteTransform, true);
+			attachment.GDNode.AddChild(_toolRemoteTransform);
 		}
 
 		// stick and stones
@@ -974,9 +975,9 @@ public partial class NPC : Physical
 	}
 
 	[NetRpc(AuthorityMode.Authority, TransferMode = TransferMode.Reliable, CallLocal = true)]
-	private void NetDropTool(string id)
+	private async void NetDropTool(string id)
 	{
-		Tool? tool = (Tool?)Root.GetNetObjectFromID(id);
+		Tool? tool = (Tool?)await Root.WaitForNetObjectAsync(id);
 
 		if (tool != null && tool.Droppable)
 		{

@@ -865,9 +865,9 @@ public sealed partial class Player : NPC
 	}
 
 	[NetRpc(AuthorityMode.Authority, CallLocal = true, TransferMode = TransferMode.Reliable)]
-	private void NetUnequipTool(string networkID)
+	private async void NetUnequipTool(string networkID)
 	{
-		NetworkedObject? netObj = Root.GetNetObjectFromID(networkID);
+		NetworkedObject? netObj = await Root.WaitForNetObjectAsync(networkID);
 
 		if (netObj == null) { return; }
 
