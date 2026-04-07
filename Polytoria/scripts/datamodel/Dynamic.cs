@@ -333,8 +333,8 @@ public partial class Dynamic : Instance
 		{
 			// Lerp position and rotation
 			Vector3 newPosition = _currentTransform.Origin.Lerp(_netTransform.Origin, (float)(delta * LerpSpeed));
-			Quaternion currentRotation = _currentTransform.Basis.GetRotationQuaternion();
-			Quaternion targetRotation = _netTransform.Basis.GetRotationQuaternion();
+			Quaternion currentRotation = _currentTransform.Basis.GetRotationQuaternion().Normalized();
+			Quaternion targetRotation = _netTransform.Basis.GetRotationQuaternion().Normalized();
 			Quaternion newRotation = currentRotation.Slerp(targetRotation, (float)(delta * LerpSpeed));
 
 			Vector3 newScale = _netTransform.Basis.Scale;
