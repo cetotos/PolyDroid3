@@ -88,6 +88,8 @@ public sealed partial class ColorPicker : PanelContainer
 	{
 		_button = button;
 
+		CheckCallbackDisposed();
+
 		if (_callback != null)
 		{
 			_picker.ColorChanged -= _callback;
@@ -108,6 +110,8 @@ public sealed partial class ColorPicker : PanelContainer
 
 		_button = null;
 
+		CheckCallbackDisposed();
+
 		if (_callback != null)
 		{
 			_picker.ColorChanged -= _callback;
@@ -116,5 +120,13 @@ public sealed partial class ColorPicker : PanelContainer
 		_finishedCallback?.Invoke();
 
 		_callback = null;
+	}
+
+	private void CheckCallbackDisposed()
+	{
+		if (_callback?.Target is Node n && !Node.IsInstanceValid(n))
+		{
+			_callback = null;
+		}
 	}
 }
