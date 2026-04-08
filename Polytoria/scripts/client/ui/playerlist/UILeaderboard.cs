@@ -166,27 +166,26 @@ public partial class UILeaderboard : Control
 	{
 		Stat? stat = Stats.FindChildByIndex(0) as Stat;
 
-		// Create a list to hold all items (teams and players) with sorting info
-		var allItems = new List<(string TeamName, double? Value, int ItemType, Node Item)>();
+		var allItems = new List<(int TeamIndex, double? Value, int ItemType, Node Item)>();
 
 		// Add team items
 		foreach (var kvp in _teamToItem)
 		{
-			var teamName = kvp.Key.Name ?? string.Empty;
+			var teamIndex = kvp.Key.Index;
 			var value = stat?.GetTotalForTeam(kvp.Key);
-			allItems.Add((teamName, value, 0, kvp.Value));
+			allItems.Add((teamIndex, value, 0, kvp.Value));
 		}
 
 		// Add player items
 		foreach (var kvp in _playerToItem)
 		{
-			var teamName = kvp.Key.Team?.Name ?? string.Empty;
+			var teamIndex = kvp.Key.Team?.Index ?? int.MaxValue;
 			var value = stat?.Get(kvp.Key) as double?;
-			allItems.Add((teamName, value, 1, kvp.Value));
+			allItems.Add((teamIndex, value, 1, kvp.Value));
 		}
 
-		// Sort: by team name, then teams before players, then by stat value if exists
-		var sortedItems = allItems.OrderBy(x => x.TeamName).ThenBy(x => x.ItemType);
+		// Sort: by team index, then teams before players, then by stat value if exists
+		var sortedItems = allItems.OrderBy(x => x.TeamIndex).ThenBy(x => x.ItemType);
 
 		if (stat != null)
 		{
