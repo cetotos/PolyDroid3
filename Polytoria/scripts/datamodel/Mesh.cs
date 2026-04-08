@@ -231,10 +231,16 @@ public sealed partial class Mesh : Entity
 				if (item is MeshInstance3D m3d)
 				{
 					_meshInstances.Add(m3d);
+
+					// Create duplicate so UsePartColor doesn't override each other
+					m3d.Mesh = (Godot.Mesh)m3d.Mesh.Duplicate();
+
 					int surfaceCount = m3d.Mesh.GetSurfaceCount();
 					for (int i = 0; i < surfaceCount; i++)
 					{
-						Material mat = m3d.Mesh.SurfaceGetMaterial(i);
+						// Duplicate material, same as above
+						Material mat = (Material)m3d.Mesh.SurfaceGetMaterial(i).Duplicate();
+						m3d.Mesh.SurfaceSetMaterial(i, mat);
 						_materials.Add(mat);
 						if (mat is StandardMaterial3D sm3d)
 						{
