@@ -13,6 +13,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TurboXml;
 using static Polytoria.Datamodel.Part;
@@ -95,7 +96,7 @@ public static class XmlFormat
 		private static string? ParseString(ReadOnlySpan<char> value)
 		{
 			value = value.Trim();
-			return value.IsEmpty ? "" : value.ToString();
+			return value.IsEmpty ? "" : Regex.Unescape(value.ToString());
 		}
 
 		private static int ParseInt(string? value)
