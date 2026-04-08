@@ -60,19 +60,19 @@ public partial class NetworkTransformSync : Instance
 		NetworkedObject[] allNetObjs = NetService.Root.GetReplicateDescendants();
 
 		byte[] rawData = ZstdCompressionUtils.Compress(JsonSerializer.Serialize(PackTransforms(allNetObjs), NetDataGenerationContext.Default.ListNetBatchTransformData).ToUtf8Buffer());
-		RpcId(peerID, nameof(NetRecvAllTransform), rawData, true);
+		RpcId(peerID, nameof(NetRecvChunk), rawData, true);
 	}
 
 	public void SendChunk(NetworkedObject[] netObjs, Player plr)
 	{
 		byte[] rawData = ZstdCompressionUtils.Compress(JsonSerializer.Serialize(PackTransforms(netObjs), NetDataGenerationContext.Default.ListNetBatchTransformData).ToUtf8Buffer());
-		RpcId(plr.PeerID, nameof(NetRecvAllTransform), rawData, false);
+		RpcId(plr.PeerID, nameof(NetRecvChunk), rawData, false);
 	}
 
 	public void BroadcastChunk(NetworkedObject[] netObjs)
 	{
 		byte[] rawData = ZstdCompressionUtils.Compress(JsonSerializer.Serialize(PackTransforms(netObjs), NetDataGenerationContext.Default.ListNetBatchTransformData).ToUtf8Buffer());
-		Rpc(nameof(NetRecvAllTransform), rawData, false);
+		Rpc(nameof(NetRecvChunk), rawData, false);
 	}
 
 	private static List<NetBatchTransformData> PackTransforms(NetworkedObject[] netObjs)
@@ -83,6 +83,10 @@ public partial class NetworkTransformSync : Instance
 			if (item is Dynamic dyn)
 			{
 				Transform3D transform3D = dyn.GetLocalTransform();
+				if (dyn is SunLight)
+				{
+					GD.PushWarning("Packed SunLight ", transform3D.Origin);
+				}
 				data.Add(new()
 				{
 					NetID = dyn.NetworkedObjectID,
@@ -94,12 +98,13 @@ public partial class NetworkTransformSync : Instance
 	}
 
 	[NetRpc(AuthorityMode.Server, TransferMode = TransferMode.Reliable)]
-	private void NetRecvAllTransform(byte[] rawBytes, bool isFirstInit)
+	private void NetRecvChunk(byte[] rawBytes, bool isFirstInit)
 	{
 		List<NetBatchTransformData> netObjsData = JsonSerializer.Deserialize(ZstdCompressionUtils.Decompress(rawBytes), NetDataGenerationContext.Default.ListNetBatchTransformData)!;
 
 		foreach (NetBatchTransformData item in netObjsData)
 		{
+			// There might be newer pending transforms
 			if (_pendingTransforms.ContainsKey(item.NetID)) { continue; }
 			RecvUpdateTransformHandler(item.NetID, item.Value.ToTransform3D(), 1, true, false);
 		}

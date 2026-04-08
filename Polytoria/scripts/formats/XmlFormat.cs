@@ -502,8 +502,14 @@ public static class XmlFormat
 
 			instance.Name = item.Name;
 			instance.AutoInvokeReady = false;
+			instance.CallInitOverrides = false;
 			instance.OriginatedFrom = "XmlFormat";
 			instance.SetNetworkParent(parent, force: true);
+		}
+		else
+		{
+			// Set to false as properties set will override it.
+			instance.CallInitOverrides = false;
 		}
 
 		instance.LegacyName = item.Name;
@@ -515,6 +521,7 @@ public static class XmlFormat
 			script.Compatibility = true;
 		}
 
+		// Apply properties
 		foreach (KeyValuePair<PropertyInfo, object> property in item.Properties)
 		{
 			try

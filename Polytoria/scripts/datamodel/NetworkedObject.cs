@@ -267,6 +267,8 @@ public partial class NetworkedObject : IScriptObject
 		}
 	}
 
+	// NOTE: This part is kinda messy/verbose.
+
 	/// <summary>
 	/// Set to false if InvokePropReady is called manually (eg. after properties set)
 	/// </summary>
@@ -276,6 +278,10 @@ public partial class NetworkedObject : IScriptObject
 	/// Set to false if prop ready should not be called on parent set (eg. when cloning)
 	/// </summary>
 	internal bool AutoInvokeReadyOnParent { get; set; } = true;
+
+	/// <summary>
+	/// Set to false if properties will be overrided, (eg. when loading from saves or cloning)
+	/// </summary>
 	internal bool CallInitOverrides { get; set; } = true;
 
 	internal bool AutoReplicate { get; set; } = true;
@@ -876,6 +882,13 @@ public partial class NetworkedObject : IScriptObject
 	internal void InvokePropReady()
 	{
 		Root?.Network?.ReplicateSync.CountInstanceLoaded(this);
+
+		// Flush pending outright (for objects that may exists before, such as SunLight/Camera)
+		if (Root != null && Root.Network != null)
+		{
+			FlushPendings();
+		}
+
 		if (IsPropReady) return;
 		IsPropReady = true;
 
@@ -884,8 +897,6 @@ public partial class NetworkedObject : IScriptObject
 		{
 			if (Root.Network != null)
 			{
-				FlushPendings();
-
 				if (Root.Network.IsServer && AutoReplicate)
 				{
 					BroadcastReplicate();

@@ -373,6 +373,8 @@ public static partial class PolyFormat
 		netObj.Root = loadContext.Root;
 		netObj.ObjectID = obj.ID;
 		netObj.AutoInvokeReady = false;
+		// Set to false as properties set will override it.
+		netObj.CallInitOverrides = false;
 		netObj.TrySetName(obj.Name);
 
 		if (!isModelRoot && netObj is Instance i)
