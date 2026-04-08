@@ -555,6 +555,15 @@ public static class XmlFormat
 			}
 		}
 
+		// Enable use part color on meshes, if Color is not set to default
+		if (instance is Datamodel.Mesh m)
+		{
+			if (!m.Color.IsEqualApprox(new(1, 1, 1)))
+			{
+				m.UsePartColor = true;
+			}
+		}
+
 		instance.InvokePropReady();
 
 		foreach (GameItem child in item.Children)
