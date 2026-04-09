@@ -114,7 +114,7 @@ public partial class Physical : Dynamic
 
 		if (!OverridePhysicsProcess)
 		{
-			//SetPhysicsProcess(!_anchored);
+			SetPhysicsProcess(!_anchored);
 		}
 	}
 
