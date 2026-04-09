@@ -291,11 +291,15 @@ public sealed partial class NetworkReplicateSync : Instance
 		await Globals.Singleton.WaitFrame();
 
 		NetReplicateData replicateData = SerializeUtils.Deserialize<NetReplicateData>(data)!;
+		string parentID = replicateData.ParentNodeID;
 		string parentNodePath = replicateData.ParentNodePath;
 
 		if (_useNetworkLog) { PT.Print($"[Net] Recv Replicate {replicateData.NodePath}"); }
 
-		NetworkedObject? parent = NetService.Root.GetNetObj(parentNodePath);
+		NetworkedObject? parent = NetService.Root.GetObjectFromID(parentID);
+
+		// Fallback to path
+		parent ??= NetService.Root.GetNetObj(parentNodePath);
 
 		if (parent != null)
 		{
@@ -324,10 +328,10 @@ public sealed partial class NetworkReplicateSync : Instance
 		else
 		{
 			// Parent not ready yet → queue
-			if (!_pendingReplicates.TryGetValue(parentNodePath, out List<NetReplicateData>? value))
+			if (!_pendingReplicates.TryGetValue(parentID, out List<NetReplicateData>? value))
 			{
 				value = [];
-				_pendingReplicates[parentNodePath] = value;
+				_pendingReplicates[parentID] = value;
 			}
 			if (_useNetworkLog) { PT.Print($"[Net] [?] Pending {replicateData.NodePath}"); }
 			value.Add(replicateData);
