@@ -413,10 +413,13 @@ public partial class Physical : Dynamic
 		_syncClock += delta;
 
 		// Sync if has authority and not anchored, if so. sync in interval
-		if (NetTransformAuthority == Root.Network.LocalPeerID && !Anchored && _syncClock > SyncInterval)
+		if (_syncClock > SyncInterval)
 		{
 			_syncClock = 0;
-			UpdateNetTransform();
+			if (NetTransformAuthority == Root.Network.LocalPeerID && !Anchored)
+			{
+				UpdateNetTransform();
+			}
 		}
 		base.PhysicsProcess(delta);
 	}
@@ -425,14 +428,15 @@ public partial class Physical : Dynamic
 	public void SetNetworkAuthority(Player? plr)
 	{
 		if (!Root.Network.IsServer) throw new InvalidOperationException("Set authority can only be called from server");
-		Rpc(nameof(NetSetAuthority), plr?.PeerID ?? 1);
+		int peerId = plr?.PeerID ?? 1;
+		NetTransformAuthority = peerId;
+		RpcId(peerId, nameof(NetSetAuthority), peerId);
+		UpdateFreeze();
 	}
 
-	[NetRpc(AuthorityMode.Server, TransferMode = TransferMode.Reliable, CallLocal = true)]
-	private void NetSetAuthority(int id)
+	[NetRpc(AuthorityMode.Server, TransferMode = TransferMode.Reliable)]
+	private void NetSetAuthority()
 	{
-		NetTransformAuthority = id;
-		SetNetworkAuthority(id, false);
 		UpdateFreeze();
 	}
 

@@ -35,6 +35,8 @@ public partial class Dynamic : Instance
 	private Transform3D _oldGlobalTransformApplied;
 	private Transform3D _oldLocalTransformApplied;
 
+	private int _netTransformAuthority = 1;
+
 #if CREATOR
 	private Area3D _boundArea3D = null!;
 	private CollisionShape3D _boundCollider = null!;
@@ -246,7 +248,15 @@ public partial class Dynamic : Instance
 	}
 
 	[SyncVar(AllowAuthorWrite = false, ServerOnly = true)]
-	public int NetTransformAuthority { get; set; } = 1;
+	public int NetTransformAuthority
+	{
+		get => _netTransformAuthority;
+		set
+		{
+			_netTransformAuthority = value;
+			OnPropertyChanged();
+		}
+	}
 
 	[ScriptProperty] public Vector3 Forward => GetGlobalTransform().Basis.Z.Normalized().Flip();
 	[ScriptProperty] public Vector3 Right => -GetGlobalTransform().Basis.X.Normalized().Flip();
@@ -286,8 +296,24 @@ public partial class Dynamic : Instance
 		CreateCreatorBounds();
 #endif
 		SetProcess(false);
-		SetPhysicsProcess(false);
+		SetPhysicsProcessWAuthor(false);
 		base.Init();
+	}
+
+	/// <summary>
+	/// Set physics process state, will check first if has authority, if currently hold an authority. Physics process will always be true
+	/// This is to still allow position sync from network transform owner without server interfering physics process state
+	/// </summary>
+	/// <param name="to"></param>
+	private void SetPhysicsProcessWAuthor(bool to)
+	{
+		if (Root != null && Root.Network != null)
+			if (NetTransformAuthority == Root.Network.LocalPeerID)
+			{
+				SetPhysicsProcess(true);
+				return;
+			}
+		SetPhysicsProcess(to);
 	}
 
 	public override void Ready()
@@ -601,7 +627,7 @@ public partial class Dynamic : Instance
 		if (Root.Network.IsServer || !lerpTransform)
 		{
 			_lerpUnreliable = false;
-			SetPhysicsProcess(false);
+			SetPhysicsProcessWAuthor(false);
 
 			_currentTransform = transform;
 			SetLocalTransform(transform);
@@ -609,7 +635,7 @@ public partial class Dynamic : Instance
 		else if (lerpTransform && !Root.Network.IsServer)
 		{
 			_lerpUnreliable = true;
-			SetPhysicsProcess(true);
+			SetPhysicsProcessWAuthor(true);
 		}
 
 		if (isReliable)
