@@ -881,7 +881,7 @@ public sealed partial class Camera : Dynamic
 	public Vector2 WorldToScreenPoint(Vector3 pos)
 	{
 		Vector2 unprojected = Camera3D.UnprojectPosition(pos);
-		return unprojected;
+		return unprojected.Flip();
 	}
 
 	[ScriptMethod]
