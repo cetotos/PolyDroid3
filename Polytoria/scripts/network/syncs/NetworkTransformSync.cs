@@ -295,7 +295,7 @@ public partial class NetworkTransformSync : Instance
 		{
 			if (batch.Count > 0)
 			{
-				RpcId(peerID, nameof(NetRecvBatchedTransformsReliable), SerializeUtils.Serialize<BatchTransformData[]>([.. batch]));
+				RpcId(peerID, nameof(NetRecvBatchedTransformsReliable), ZstdCompressionUtils.Compress(SerializeUtils.Serialize<BatchTransformData[]>([.. batch])));
 			}
 		}
 
@@ -304,7 +304,7 @@ public partial class NetworkTransformSync : Instance
 		{
 			if (batch.Count > 0)
 			{
-				RpcId(peerID, nameof(NetRecvBatchedTransformsUnreliable), SerializeUtils.Serialize<BatchTransformData[]>([.. batch]));
+				RpcId(peerID, nameof(NetRecvBatchedTransformsUnreliable), ZstdCompressionUtils.Compress(SerializeUtils.Serialize<BatchTransformData[]>([.. batch])));
 			}
 		}
 	}
@@ -312,6 +312,10 @@ public partial class NetworkTransformSync : Instance
 	private void SetPendingBatch(string objID, PendingBatchTransform entry, bool forced = false)
 	{
 		if (_pendingBatchUpdate.TryGetValue(objID, out var existing) && existing.Forced && !forced)
+			return;
+
+		// Skip if transform is not changed enough to matter
+		if (!forced && existing.Transform.IsEqualApprox(entry.Transform))
 			return;
 
 		_pendingBatchUpdate[objID] = entry;
@@ -332,13 +336,13 @@ public partial class NetworkTransformSync : Instance
 	[NetRpc(AuthorityMode.Authority, TransferMode = TransferMode.UnreliableOrdered)]
 	private void RecvBatchedTransforms(byte[] transformsRaw, bool isReliable)
 	{
-		BatchTransformData[]? transforms = SerializeUtils.Deserialize<BatchTransformData[]>(transformsRaw);
+		BatchTransformData[]? transforms = SerializeUtils.Deserialize<BatchTransformData[]>(ZstdCompressionUtils.Decompress(transformsRaw));
 		if (transforms == null) return;
 		foreach (var data in transforms)
 		{
 			if (NetService.Root.GetNetObjectFromID(data.ObjID) is Dynamic dyn)
 			{
-				dyn.UpdateTransformFromNet(Transform3DDto.FromString(data.Transform).ToTransform3D(), isReliable, data.Lerp);
+				dyn.UpdateTransformFromNet(Transform3DDto.FromFloatArray(data.Transform), isReliable, data.Lerp);
 			}
 		}
 	}
@@ -364,7 +368,7 @@ public partial class NetworkTransformSync : Instance
 	public partial class BatchTransformData
 	{
 		public string ObjID = null!;
-		public string Transform = null!;
+		public float[] Transform = null!;
 		public bool Lerp = false;
 
 		[MemoryPackConstructor]
@@ -373,7 +377,7 @@ public partial class NetworkTransformSync : Instance
 		public BatchTransformData(string objID, Transform3D transform, bool lerp)
 		{
 			ObjID = objID;
-			Transform = Transform3DDto.ToString(transform);
+			Transform = Transform3DDto.ToFloatArray(transform);
 			Lerp = lerp;
 		}
 	}
