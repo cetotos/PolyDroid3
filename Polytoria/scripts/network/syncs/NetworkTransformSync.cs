@@ -83,10 +83,6 @@ public partial class NetworkTransformSync : Instance
 			if (item is Dynamic dyn)
 			{
 				Transform3D transform3D = dyn.GetLocalTransform();
-				if (dyn is SunLight)
-				{
-					GD.PushWarning("Packed SunLight ", transform3D.Origin);
-				}
 				data.Add(new()
 				{
 					NetID = dyn.NetworkedObjectID,
