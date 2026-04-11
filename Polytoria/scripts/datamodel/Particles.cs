@@ -372,6 +372,9 @@ public sealed partial class Particles : Dynamic
 		_material.Transparency = BaseMaterial3D.TransparencyEnum.Alpha;
 
 		_particles.DrawPass1 = _mesh;
+
+		// Workaround for triggering particles to play even if they're not visible
+		_particles.VisibilityAabb = new Aabb().Grow(1000000);
 	}
 
 	public override void InitOverrides()
