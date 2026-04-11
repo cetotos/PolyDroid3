@@ -406,6 +406,11 @@ public class LuaMetatable : LuaObject
 				object? propSetTo = LangProvider.LuaToObject(state, 3, getAsFunction: true);
 				object? convertedValue = ScriptService.ConvertToPropertyType(propSetTo, prop.PropertyType);
 
+				if (convertedValue == null && !IsNullableType(prop.PropertyType))
+				{
+					throw new Exception("member " + prop.Name + " cannot be assigned to nil.");
+				}
+
 				prop.SetValue(targetObject, convertedValue);
 				return 0;
 			}
@@ -978,6 +983,14 @@ public class LuaMetatable : LuaObject
 			LangProvider.PushValueToLua(state, result);
 			return 1;
 		}
+	}
 
+	private static bool IsNullableType(Type type)
+	{
+		// Reference types are always nullable
+		if (!type.IsValueType) return true;
+
+		// Check for Nullable<T> (e.g. int?, float?)
+		return Nullable.GetUnderlyingType(type) != null;
 	}
 }
