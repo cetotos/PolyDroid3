@@ -1574,16 +1574,7 @@ public partial class NetworkedObject : IScriptObject
 
 		if (this is Dynamic d && clonedRoot is Dynamic nd)
 		{
-			if (isRoot)
-			{
-				// Set global on root
-				nd.SetGlobalTransform(d.GetGlobalTransform());
-			}
-			else
-			{
-				// Set local on non root
-				nd.SetLocalTransform(d.GetLocalTransform());
-			}
+			d.CopyTransformTo(nd, asGlobal: isRoot);
 		}
 
 		if (callReady)

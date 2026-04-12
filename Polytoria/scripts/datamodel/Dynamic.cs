@@ -852,9 +852,7 @@ public partial class Dynamic : Instance
 	internal Transform3D GetLocalTransform()
 	{
 		var t = GDNode3D.Transform;
-		Transform3D t2 = new(t.Basis, t.Origin);
-		var t3 = t2 * Transform3D.Identity.Scaled(NodeSize);
-		return t3;
+		return t * Transform3D.Identity.Scaled(NodeSize);
 	}
 
 	internal void SetGlobalTransformRaw(Transform3D to)
@@ -918,6 +916,22 @@ public partial class Dynamic : Instance
 	{
 		if (!GDNode3D.IsInsideTree()) return;
 		GDNode3D.ForceUpdateTransform();
+	}
+
+	internal void CopyTransformTo(Dynamic target, bool asGlobal = false)
+	{
+		target.NodeSize = NodeSize;
+
+		if (asGlobal)
+		{
+			target.GDNode3D.GlobalTransform = GDNode3D.GlobalTransform;
+		}
+		else
+		{
+			target.GDNode3D.Transform = GDNode3D.Transform;
+		}
+
+		target.UpdateCurrentTransformCache();
 	}
 
 	[ScriptMethod]
