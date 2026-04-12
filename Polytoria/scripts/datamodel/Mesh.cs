@@ -19,7 +19,10 @@ public sealed partial class Mesh : Entity
 
 	private int _assetID = 0;
 	private bool _includeOffset;
-	private Node3D? _meshNode = null;
+
+	private Node3D _meshContainer = null!; // scaled
+	private Node3D? _meshNode = null; // offset only
+
 	private CollisionTypeEnum _collisionType = CollisionTypeEnum.Bounds;
 	private bool _playAnimationOnStart;
 	private bool _usePartColor;
@@ -182,8 +185,16 @@ public sealed partial class Mesh : Entity
 
 	public override void Init()
 	{
+		_meshContainer = new Node3D();
+		GDNode3D.AddChild(_meshContainer);
+
 		base.Init();
+	}
+
+	public override void InitOverrides()
+	{
 		Size = Vector3.One * 0.5f;
+		base.InitOverrides();
 	}
 
 	public override void PreDelete()
@@ -254,7 +265,7 @@ public sealed partial class Mesh : Entity
 			UpdateColor();
 			UpdateShadows();
 
-			GDNode3D.AddChild(obj);
+			_meshContainer.AddChild(obj);
 
 			if (PlayAnimationOnStart && _animPlay != null)
 			{
@@ -382,10 +393,7 @@ public sealed partial class Mesh : Entity
 		}
 		else
 		{
-			Vector3 offset = _meshNode.CalculateBounds().GetCenter();
-			offset.X *= -1;
-			offset.Y *= -1;
-			offset.Z *= -1;
+			Vector3 offset = -_meshNode.CalculateBounds().GetCenter() / 2;
 
 			_meshNode.Position = offset;
 		}
@@ -517,6 +525,11 @@ public sealed partial class Mesh : Entity
 		}
 
 		return bounds ?? default;
+	}
+
+	internal override void OnNodeSizeChanged(Vector3 newSize)
+	{
+		_meshContainer.Scale = newSize;
 	}
 
 	public struct MeshAnimationInfo : IScriptObject

@@ -26,24 +26,6 @@ public partial class Part : Entity
 	public bool IsMeshSeperated => _isSeperateMesh;
 	public int BridgeID = -1;
 
-	private Vector3 _partSize = Vector3.One;
-
-	// NOTE: Part size is local
-	internal Vector3 PartSize
-	{
-		get => _partSize;
-		set
-		{
-			var oldSize = _partSize;
-			_partSize = value;
-			if (oldSize != value)
-			{
-				_mesh?.Scale = _partSize;
-				_nRemoteAt?.Scale = _partSize;
-			}
-		}
-	}
-
 	public override void EnterTree()
 	{
 		Instance? current = Parent;
@@ -94,6 +76,7 @@ public partial class Part : Entity
 	{
 		AddCollisionShape(_collider);
 		UpdateCollision();
+		UpdateMeshSize();
 
 #if CREATOR
 		if (Root.Network.NetworkMode == Services.NetworkService.NetworkModeEnum.Creator)
@@ -136,12 +119,25 @@ public partial class Part : Entity
 		}
 		*/
 
-		_mesh.Scale = _partSize;
+		UpdateMeshSize();
 
 		UpdateShape();
 		UpdateMaterial();
 		UpdateColor();
 		UpdateShadow();
+		RefreshUV1();
+	}
+
+	internal override void OnNodeSizeChanged(Vector3 newSize)
+	{
+		UpdateMeshSize();
+		base.OnNodeSizeChanged(newSize);
+	}
+
+	private void UpdateMeshSize()
+	{
+		_mesh?.Scale = NodeSize;
+		_nRemoteAt?.Scale = NodeSize;
 		RefreshUV1();
 	}
 
