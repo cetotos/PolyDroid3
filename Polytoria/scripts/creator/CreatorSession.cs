@@ -321,7 +321,7 @@ public partial class CreatorSession : Node, IDisposable
 		return root;
 	}
 
-	public async Task<World>? OpenMainWorld()
+	public async Task<World?> OpenMainWorld()
 	{
 		return await OpenWorld(Metadata.MainWorld);
 	}
