@@ -21,7 +21,7 @@ public partial class Dynamic : Instance
 {
 	internal Node3D GDNode3D = null!;
 
-	private Vector3 _nodeSize = Vector3.One;
+	private Vector3 _nodeSize = Vector3.One; // NodeSize is global
 	internal Vector3 NodeSize
 	{
 		get => _nodeSize;
@@ -852,7 +852,7 @@ public partial class Dynamic : Instance
 	internal Transform3D GetLocalTransform()
 	{
 		var t = GDNode3D.Transform;
-		return t * Transform3D.Identity.Scaled(NodeSize);
+		return t * Transform3D.Identity.Scaled(NodeSize / GetParentScale());
 	}
 
 	internal void SetGlobalTransformRaw(Transform3D to)
@@ -887,8 +887,7 @@ public partial class Dynamic : Instance
 		);
 
 		var oldN = NodeSize;
-		NodeSize = scale;
-
+		NodeSize = scale * GetParentScale();
 		GDNode3D.Transform = new(to.Basis.Orthonormalized(), to.Origin);
 		PropagateParentSizeChanged(oldN);
 	}
