@@ -7,7 +7,7 @@ using Polytoria.Attributes;
 
 namespace Polytoria.Datamodel;
 
-[Abstract]
+[Instantiable]
 public partial class UIGridLayout : UIContainer
 {
 	private int _columns;
