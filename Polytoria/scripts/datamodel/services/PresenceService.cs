@@ -126,9 +126,9 @@ public sealed partial class PresenceService : Instance
 			SetupDiscord();
 			UpdateIntegrations();
 		}
-		catch (Exception ex)
+		catch
 		{
-			PT.PrintErr(ex);
+			// ignore the error its lowk annoying
 		}
 	}
 
