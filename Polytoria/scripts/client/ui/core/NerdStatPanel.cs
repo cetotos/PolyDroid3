@@ -5,6 +5,7 @@
 using Godot;
 using Humanizer;
 using Polytoria.Datamodel;
+using Polytoria.Shared.AssetLoaders;
 using System;
 using System.Collections.Generic;
 
@@ -30,7 +31,7 @@ public partial class NerdStatPanel : Control
 		});
 		CreateLabel("Ping", () =>
 		{
-			return _root.Players.LocalPlayer.NetworkPing + "ms";
+			return (_root.Players.LocalPlayer?.NetworkPing ?? 0) + "ms";
 		});
 		CreateLabel("Time Process", () =>
 		{
@@ -54,7 +55,10 @@ public partial class NerdStatPanel : Control
 			return Performance.Singleton.GetMonitor(Performance.Monitor.ObjectResourceCount).ToString();
 		});
 		CreateDivider();
-		CreateLabel("Non-DMB Parts", _root.Bridge.SeparatedPartCount.ToString);
+		CreateLabel("Non-DMB Parts", () => _root.Bridge.SeparatedPartCount.ToString());
+		CreateDivider();
+		CreateLabel("Loaded Assets", () => AssetLoader.Singleton.AssetCacheCount.ToString());
+		CreateLabel("Pending Assets", () => AssetLoader.Singleton.PendingAssetsCount.ToString());
 		CreateDivider();
 		CreateLabel("Data Send", () =>
 		{
