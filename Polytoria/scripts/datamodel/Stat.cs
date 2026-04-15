@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+using MemoryPack;
 using Polytoria.Attributes;
 using Polytoria.Networking;
 using Polytoria.Scripting;
@@ -190,7 +191,8 @@ public partial class Stat : Instance
 		return displayTxt;
 	}
 
-	public struct PlayerStatData
+	[MemoryPackable]
+	public partial struct PlayerStatData
 	{
 		public int UserID;
 		public string? StringValue;
