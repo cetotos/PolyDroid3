@@ -166,7 +166,7 @@ public sealed partial class Globals : Node
 		// Initialize Native
 		try
 		{
-			NativeInit.Init();
+			NativeBinHelper.Init();
 		}
 		catch (Exception ex)
 		{

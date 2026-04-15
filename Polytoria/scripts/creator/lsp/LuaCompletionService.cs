@@ -5,7 +5,6 @@
 using Godot;
 using Polytoria.Creator.LSP.Schemas;
 using Polytoria.Shared;
-using Polytoria.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -17,7 +16,6 @@ namespace Polytoria.Creator.LSP;
 
 public class LuaCompletionService(CreatorSession session)
 {
-	public const string LuaLSEditorExecutablePath = "res://native/luau-lsp/";
 	private readonly string _workspacePath = session.ProjectFolderPath;
 	private Process _luaLSProcess = null!;
 	private LspClient _client = null!;
@@ -36,50 +34,9 @@ public class LuaCompletionService(CreatorSession session)
 
 	public async Task InitAsync()
 	{
-		string basePath;
-		string? exeName = null;
-
-		if (Globals.IsInGDEditor)
-		{
-			basePath = LuaLSEditorExecutablePath;
-		}
-		else
-		{
-			basePath = OS.GetExecutablePath().GetBaseDir();
-		}
-
-		if (OS.HasFeature("windows"))
-		{
-			exeName = "luau-lsp.exe";
-			if (Globals.IsInGDEditor)
-				basePath = basePath.PathJoin("windows");
-		}
-		else if (OS.HasFeature("macos"))
-		{
-			exeName = "luau-lsp";
-			if (Globals.IsInGDEditor)
-				basePath = basePath.PathJoin("macos");
-			else
-				// luau-lsp live alongside Polytoria.app, go up 3 levels to reach the folder containing the .app
-				// NOTE: HACKY!!!!!!!!!!!!!!!!!!!!
-				basePath = basePath.GetBaseDir().GetBaseDir().GetBaseDir();
-		}
-		else if (OS.HasFeature("linux"))
-		{
-			exeName = "luau-lsp";
-			if (Globals.IsInGDEditor)
-				basePath = basePath.PathJoin("linux");
-		}
-
-		if (exeName == null) throw new Exception("Unsupported platform for LuaLS");
-
-		string exePath = basePath.PathJoin(exeName);
-		string basePathGlobal = ProjectSettings.GlobalizePath(basePath).SanitizePath();
-		string exePathGlobal = ProjectSettings.GlobalizePath(exePath).SanitizePath();
-
 		ProcessStartInfo processStartInfo = new()
 		{
-			FileName = exePathGlobal,
+			FileName = NativeBinHelper.ResolveLuauLspBinPath(),
 			Arguments = "lsp --stdio --definitions=@poly=.poly/luau/def.d.luau",
 			RedirectStandardInput = true,
 			RedirectStandardOutput = true,
