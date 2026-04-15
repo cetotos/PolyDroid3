@@ -10,6 +10,7 @@ using Polytoria.Shared;
 using Polytoria.Utils;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using static Polytoria.Datamodel.Services.NetworkService;
 
 namespace Polytoria.Datamodel;
@@ -36,6 +37,7 @@ public partial class Physical : Dynamic
 	public List<CollisionShape3D> CollisionShapes = [];
 	public List<CollisionShape3D> AreaCollisionShapes = [];
 	public List<CollisionShape3D> CollisionRootShapes = [];
+	private readonly HashSet<CollisionShape3D> _pendingAreaShapes = [];
 
 	[ScriptProperty] public PTSignal<Physical> Touched { get; private set; } = new();
 	[ScriptProperty] public PTSignal<Physical> TouchEnded { get; private set; } = new();
@@ -245,6 +247,18 @@ public partial class Physical : Dynamic
 	public override void HiddenChanged(bool to)
 	{
 		UpdateCollision();
+
+		if (!to)
+		{
+			// create pending shapes
+			foreach (var shape in _pendingAreaShapes.ToArray())
+			{
+				if (Node.IsInstanceValid(shape))
+					CreateAreaShapeInternal(shape);
+			}
+
+			_pendingAreaShapes.Clear();
+		}
 
 		foreach (CollisionShape3D c in AreaCollisionShapes)
 		{
@@ -476,6 +490,7 @@ public partial class Physical : Dynamic
 	{
 		if (!CollisionShapes.Contains(collisionShape)) return;
 		CollisionShapes.Remove(collisionShape);
+		_pendingAreaShapes.Remove(collisionShape);
 
 		if (collisionShape.HasMeta("_area_nodes"))
 		{
@@ -525,6 +540,20 @@ public partial class Physical : Dynamic
 
 
 	private void CreateAreaShape(CollisionShape3D origin)
+	{
+		if (PhysicalArea == null || !Node.IsInstanceValid(origin)) return;
+
+		// If is hidden, don't create area shape yet
+		if (IsHidden)
+		{
+			_pendingAreaShapes.Add(origin);
+			return;
+		}
+
+		CreateAreaShapeInternal(origin);
+	}
+
+	private void CreateAreaShapeInternal(CollisionShape3D origin)
 	{
 		if (PhysicalArea == null || !Node.IsInstanceValid(origin)) return;
 
