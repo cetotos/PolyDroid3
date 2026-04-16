@@ -20,7 +20,11 @@ using Polytoria.Shared;
 using Polytoria.Utils;
 using Polytoria.Utils.DTOs;
 using System;
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -32,6 +36,8 @@ namespace Polytoria.Datamodel.Services;
 [ExplorerExclude, SaveIgnore, Internal]
 public sealed partial class NetworkService : Instance
 {
+	private static readonly ConcurrentDictionary<(Type Type, int MethodId), RpcDispatchInfo> _rpcDispatchCache = new();
+
 	private const int PingIntervalMs = 250; // Ping interval
 	private const int AuthWaitTimeoutSec = 15; // Time wait before user disconnects due to auth timeout
 	private const int HeartbeatIntervalSec = 10; // Server heartbeat interval
@@ -170,6 +176,73 @@ public sealed partial class NetworkService : Instance
 		NetInstance?.MessageReceived += OnMessageRecv;
 	}
 
+	private static RpcDispatchInfo GetDispatchInfo(NetworkedObject target, int methodId)
+	{
+		Type targetType = target.GetType();
+
+		return _rpcDispatchCache.GetOrAdd((targetType, methodId), (key) =>
+		{
+			MethodInfo method = target.GetRpcMethod(methodId);
+			NetRpcAttribute attribute = method.GetCustomAttribute<NetRpcAttribute>() ?? throw new NetworkException($"Tried to call Rpc function which is not marked as Rpc ({method.Name})");
+			Type[] parameterTypes = method.GetParameters().Select(p => p.ParameterType).ToArray();
+
+			Action<NetworkedObject, object?[]?> invoker = CreateInvoker(method);
+
+			return new RpcDispatchInfo()
+			{
+				Method = method,
+				Attribute = attribute,
+				ParameterTypes = parameterTypes,
+				Invoke = invoker
+			};
+		});
+	}
+
+	private static Action<NetworkedObject, object?[]?> CreateInvoker(MethodInfo method)
+	{
+		ParameterExpression targetParam = System.Linq.Expressions.Expression.Parameter(typeof(NetworkedObject), "target");
+		ParameterExpression argsParam = System.Linq.Expressions.Expression.Parameter(typeof(object[]), "args");
+
+		Type declaringType = method.DeclaringType ?? throw new InvalidOperationException("Method has no declaring type");
+		UnaryExpression castTarget = System.Linq.Expressions.Expression.Convert(targetParam, declaringType);
+
+		ParameterInfo[] parameters = method.GetParameters();
+		System.Linq.Expressions.Expression[] callArgs = new System.Linq.Expressions.Expression[parameters.Length];
+
+		for (int i = 0; i < parameters.Length; i++)
+		{
+			var indexExpr = System.Linq.Expressions.Expression.ArrayIndex(argsParam, System.Linq.Expressions.Expression.Constant(i));
+			callArgs[i] = System.Linq.Expressions.Expression.Convert(indexExpr, parameters[i].ParameterType);
+		}
+
+		MethodCallExpression call = System.Linq.Expressions.Expression.Call(castTarget, method, callArgs);
+		System.Linq.Expressions.Expression body = method.ReturnType == typeof(void) ? call : System.Linq.Expressions.Expression.Block(call, System.Linq.Expressions.Expression.Empty());
+
+		return System.Linq.Expressions.Expression.Lambda<Action<NetworkedObject, object?[]?>>(body, targetParam, argsParam).Compile();
+	}
+
+	private static void ValidateAuthority(NetRpcAttribute rpcAttr, MethodInfo md, NetworkedObject netObj, int originFromPeer, TransferMode tfm, InternalNetMsg netMsg)
+	{
+		// Check if packet flag matches
+		if (rpcAttr.TransferMode == TransferMode.Reliable && tfm != TransferMode.Reliable) throw new NetworkException($"Flag mismatch (expected {rpcAttr.TransferMode} but got {tfm}) ({md.Name})");
+
+		if (rpcAttr.AuthorMode == AuthorityMode.Server)
+		{
+			// Check if is server
+			if (originFromPeer != 1) throw new NetworkException($"Invalid authority, author mode is Server but is from peer {originFromPeer} ({md.Name})");
+		}
+		else if (rpcAttr.AuthorMode == AuthorityMode.Authority)
+		{
+			// Check if is authority
+			if (originFromPeer != 1 && originFromPeer != netObj.NetworkAuthority) throw new NetworkException($"Invalid authority, author is {netObj.NetworkAuthority} but is from peer {originFromPeer} ({md.Name})");
+		}
+		else if (rpcAttr.AuthorMode == AuthorityMode.Any)
+		{
+			// Check if is authority
+			if (originFromPeer != 1 && netMsg.BroadcastAll && rpcAttr.AllowToServerOnly) throw new NetworkException($"Broadcast to server only rule violation, from peer {originFromPeer} ({md.Name})");
+		}
+	}
+
 	private async void OnMessageRecv(int fromPeer, byte[] data, TransferMode tfm)
 	{
 		if (NetInstance == null) return;
@@ -178,7 +251,7 @@ public sealed partial class NetworkService : Instance
 #endif
 		try
 		{
-			InternalNetMsg netMsg = await InternalNetMsg.DeserializeAsync(data);
+			InternalNetMsg netMsg = InternalNetMsg.Deserialize(data);
 #if DEBUG
 			netDebugTrace = netMsg.StackTrace;
 #endif
@@ -195,107 +268,79 @@ public sealed partial class NetworkService : Instance
 				netObj = Root.GetNetObj(netMsg.Target);
 			}
 
-			if (netObj != null)
+			if (netObj == null) return;
+
+			RpcDispatchInfo dispatch = GetDispatchInfo(netObj, netMsg.TargetMethod);
+			ValidateAuthority(dispatch.Attribute, dispatch.Method, netObj, originFromPeer, tfm, netMsg);
+
+			Type[] paramTypes = dispatch.ParameterTypes;
+
+			if (netMsg.BroadcastAll && IsServer)
 			{
-				MethodInfo? md = netObj.GetRpcMethod(netMsg.TargetMethod);
-				NetRpcAttribute? rpcA = md.GetCustomAttribute<NetRpcAttribute>() ?? throw new NetworkException($"Tried to call Rpc function which is not marked as Rpc ({md.Name})");
+				bool canSend;
 
-				// Check if packet flag matches
-				if (rpcA.TransferMode == TransferMode.Reliable && tfm != TransferMode.Reliable) throw new NetworkException($"Flag mismatch (expected {rpcA.TransferMode} but got {tfm}) ({md.Name})");
-
-				if (rpcA.AuthorMode == AuthorityMode.Server)
+				if (originFromPeer != 1)
 				{
-					// Check if is server
-					if (originFromPeer != 1) throw new NetworkException($"Invalid authority, author mode is Server but is from peer {originFromPeer} ({md.Name})");
-				}
-				else if (rpcA.AuthorMode == AuthorityMode.Authority)
-				{
-					// Check if is authority
-					if (originFromPeer != 1 && originFromPeer != netObj.NetworkAuthority) throw new NetworkException($"Invalid authority, author is {netObj.NetworkAuthority} but is from peer {originFromPeer} ({md.Name})");
-				}
-				else if (rpcA.AuthorMode == AuthorityMode.Any)
-				{
-					// Check if is authority
-					if (originFromPeer != 1 && netMsg.BroadcastAll && rpcA.AllowToServerOnly) throw new NetworkException($"Broadcast to server only rule violation, from peer {originFromPeer} ({md.Name})");
-				}
-
-				List<Type> paramTypes = [];
-
-				foreach (ParameterInfo parm in md.GetParameters())
-				{
-					paramTypes.Add(parm.ParameterType);
-				}
-
-				List<object?> args = [];
-
-				int i = 0;
-				int msgSize = 0;
-				foreach (byte[] item in netMsg.ByteArrays)
-				{
-					msgSize += item.Length;
-					args.Add(await NetworkPropSync.DeserializePropValueAsync(item, paramTypes[i]));
-					i++;
-				}
-
-				if (netMsg.BroadcastAll && IsServer)
-				{
-					bool canSend;
-
-					if (originFromPeer != 1)
+					lock (_rateLimiterLock)
 					{
-						lock (_rateLimiterLock)
+						var rateLimiter = _peerRateLimiters[originFromPeer];
+						if (tfm == TransferMode.Reliable)
 						{
-							var rateLimiter = _peerRateLimiters[originFromPeer];
-							if (tfm == TransferMode.Reliable)
-							{
-								canSend = rateLimiter.Reliable.TryAccept();
-							}
-							else
-							{
-								canSend = rateLimiter.Unreliable.TryAccept();
-							}
+							canSend = rateLimiter.Reliable.TryAccept();
+						}
+						else
+						{
+							canSend = rateLimiter.Unreliable.TryAccept();
 						}
 					}
-					else
-					{
-						// Don't apply rate limit if server
-						canSend = true;
-					}
-
-					netMsg.OriginSender = originFromPeer;
-
-					if (canSend)
-					{
-						if (Globals.UseLogRPC) PT.Print($"Broadcast {md.Name} from {originFromPeer} to all");
-						NetInstance.BroadcastMessage(await netMsg.SerializeAsync(), rpcA.TransferMode, rpcA.TransferChannel, [originFromPeer]);
-					}
-					else
-					{
-						if (Globals.UseLogRPC) PT.Print($"Blocked {md.Name} from {originFromPeer}");
-						return;
-					}
+				}
+				else
+				{
+					// Don't apply rate limit if server
+					canSend = true;
 				}
 
-				if (originFromPeer == LocalPeerID) return;
+				netMsg.OriginSender = originFromPeer;
 
-				if (Globals.UseLogRPC) PT.Print($"[{LocalPeerID}] Received {md.Name} from {originFromPeer} ({msgSize.Bytes().Kilobytes}KB)");
+				if (canSend)
+				{
+					if (Globals.UseLogRPC) PT.Print($"Broadcast {dispatch.Method.Name} from {originFromPeer} to all");
+					NetInstance.BroadcastMessage(netMsg.Serialize(), dispatch.Attribute.TransferMode, dispatch.Attribute.TransferChannel, [originFromPeer]);
+				}
+				else
+				{
+					if (Globals.UseLogRPC) PT.Print($"Blocked {dispatch.Method.Name} from {originFromPeer}");
+					return;
+				}
+			}
+
+			if (originFromPeer == LocalPeerID) return;
+			netObj.RemoteSenderId = originFromPeer;
+
+			object?[] args = ArrayPool<object?>.Shared.Rent(dispatch.ParameterTypes.Length);
+
+			try
+			{
+				for (int i = 0; i < dispatch.ParameterTypes.Length; i++)
+				{
+					args[i] = NetworkPropSync.DeserializePropValue(netMsg.ByteArrays[i], dispatch.ParameterTypes[i]);
+				}
 
 				netObj.RemoteSenderId = originFromPeer;
-				try
+				dispatch.Invoke(netObj, args);
+			}
+			catch (Exception ex)
+			{
+				if (OS.IsDebugBuild())
 				{
-					md.Invoke(netObj, [.. args]);
+					PT.PrintErr(dispatch.Method.Name, " invoke failure: ", ex);
 				}
-				catch (Exception ex)
-				{
-					if (OS.IsDebugBuild())
-					{
-						PT.PrintErr(md.Name, " invoke failure: ", ex);
-					}
-				}
-				finally
-				{
-					netObj.RemoteSenderId = 0;
-				}
+			}
+			finally
+			{
+				netObj.RemoteSenderId = 0;
+				Array.Clear(args, 0, dispatch.ParameterTypes.Length);
+				ArrayPool<object?>.Shared.Return(args);
 			}
 		}
 		catch (Exception ex)
@@ -1016,5 +1061,13 @@ public sealed partial class NetworkService : Instance
 	{
 		public SlidingWindowRateLimiter Reliable = new(MaxBroadcastPacketPerSec, TimeSpan.FromSeconds(1));
 		public SlidingWindowRateLimiter Unreliable = new(MaxBroadcastPacketPerSec, TimeSpan.FromSeconds(1));
+	}
+
+	private class RpcDispatchInfo
+	{
+		public required MethodInfo Method { get; init; }
+		public required NetRpcAttribute Attribute { get; init; }
+		public required Type[] ParameterTypes { get; init; }
+		public required Action<NetworkedObject, object?[]?> Invoke { get; init; }
 	}
 }
