@@ -968,7 +968,7 @@ public sealed partial class NetworkService : Instance
 		[JsonInclude]
 		public string NetID = null!;
 		[JsonInclude]
-		public Transform3DDto Value = null!;
+		public float[] Value = null!;
 	}
 
 	[MemoryPackable]
