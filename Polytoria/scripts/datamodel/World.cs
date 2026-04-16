@@ -51,8 +51,8 @@ public sealed partial class World : Instance
 	private static World? _current;
 	private int _worldID = 0;
 	private bool _serverUnderLoad = false;
-	private readonly Dictionary<string, TaskCompletionSource<NetworkedObject?>> _pendingRequests = [];
-	private readonly Dictionary<string, TaskCompletionSource<NetworkedObject?>> _pendingReadyRequests = [];
+	private readonly ConcurrentDictionary<string, TaskCompletionSource<NetworkedObject?>> _pendingRequests = [];
+	private readonly ConcurrentDictionary<string, TaskCompletionSource<NetworkedObject?>> _pendingReadyRequests = [];
 
 	internal int WorldSessionID = 0;
 
@@ -405,7 +405,7 @@ public sealed partial class World : Instance
 		CancellationTokenSource cts = new(timeoutMs);
 		cts.Token.Register(() =>
 		{
-			_pendingRequests.Remove(networkID);
+			_pendingRequests.Remove(networkID, out _);
 			tcs.TrySetResult(null);
 		});
 
@@ -427,7 +427,7 @@ public sealed partial class World : Instance
 		CancellationTokenSource cts = new(timeoutMs);
 		cts.Token.Register(() =>
 		{
-			if (_pendingReadyRequests.Remove(networkID))
+			if (_pendingReadyRequests.Remove(networkID, out _))
 				tcs.TrySetResult(null);
 		});
 
@@ -449,7 +449,7 @@ public sealed partial class World : Instance
 		NetworkObjects[netObj.NetworkedObjectID] = netObj;
 		if (_pendingRequests.TryGetValue(netObj.NetworkedObjectID, out var tcs))
 		{
-			_pendingRequests.Remove(netObj.NetworkedObjectID);
+			_pendingRequests.Remove(netObj.NetworkedObjectID, out _);
 			tcs.SetResult(netObj);
 		}
 	}
@@ -473,7 +473,7 @@ public sealed partial class World : Instance
 	{
 		if (_pendingReadyRequests.TryGetValue(netObj.NetworkedObjectID, out var tcs))
 		{
-			_pendingReadyRequests.Remove(netObj.NetworkedObjectID);
+			_pendingReadyRequests.Remove(netObj.NetworkedObjectID, out _);
 			tcs.SetResult(netObj);
 		}
 	}
