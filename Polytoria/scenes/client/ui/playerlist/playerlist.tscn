@@ -138,7 +138,7 @@ layout_mode = 3
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -231.0
+offset_left = -316.0
 offset_top = 16.0
 offset_right = -16.0
 offset_bottom = 96.0
@@ -147,7 +147,7 @@ mouse_filter = 2
 theme = ExtResource("1_romx1")
 script = ExtResource("2_4fqi5")
 _leaderboardAnim = NodePath("LeaderboardAnim")
-metadata/_edit_vertical_guides_ = [921.0]
+metadata/_edit_vertical_guides_ = [921.0, 1136.0]
 
 [node name="Pivot" type="Control" parent="." unique_id=1642300012]
 layout_mode = 1
@@ -168,7 +168,7 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -215.0
+offset_left = -260.0
 offset_bottom = 48.0
 grow_horizontal = 0
 pivot_offset_ratio = Vector2(1, 0)
@@ -194,7 +194,7 @@ layout_mode = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -215.0
+offset_left = -260.0
 offset_bottom = 16.0
 grow_horizontal = 0
 size_flags_horizontal = 3
@@ -207,6 +207,10 @@ UserOptions = NodePath("../../../../UserOptions")
 
 [node name="UserOptions" parent="Pivot/Pivot" unique_id=1089935845 instance=ExtResource("5_h66kp")]
 layout_mode = 1
+offset_left = -266.0
+offset_top = 61.0
+offset_right = -266.0
+offset_bottom = 61.0
 
 [node name="LeaderboardAnim" type="AnimationPlayer" parent="." unique_id=1744649798]
 libraries/ = SubResource("AnimationLibrary_4fqi5")
