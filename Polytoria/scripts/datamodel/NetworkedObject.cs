@@ -1890,6 +1890,34 @@ public partial class NetworkedObject : IScriptObject
 		if (to) Globals.GodotPhysicsProcess += PhysicsProcess;
 	}
 
+	protected byte[] BuildRpcPacket(string methodName, params object?[] args)
+	{
+		byte[][] msg = new byte[args.Length][];
+
+		for (int i = 0; i < args.Length; i++)
+		{
+			msg[i] = NetworkPropSync.SerializePropValue(args[i]);
+		}
+
+		InternalNetMsg.InternalNetMsgPayload payload = new()
+		{
+			BroadcastAll = false,
+			Target = ProcessRpcTarget(),
+			TargetMethod = GetRpcMethodId(methodName),
+			ByteArrays = msg,
+			OriginSender = 0,
+		};
+
+#if DEBUG
+		if (Globals.UseNetTrace)
+		{
+			payload.StackTrace = System.Environment.StackTrace;
+		}
+#endif
+
+		return SerializeUtils.Serialize(payload);
+	}
+
 	[ScriptMethod]
 	public void Delete(float time = 0f) => Destroy(time);
 
