@@ -28,7 +28,7 @@ public class NetworkInstance
 
 	private const int DefaultCapacity = 67;
 	private const int DefaultPort = 21441;
-	private const int MinimumTimeout = 0;
+	private const int MinimumTimeout = 5;
 
 	private readonly ENetConnection _peer;
 
@@ -202,7 +202,6 @@ public class NetworkInstance
 				ProcessNetwork();
 				CheckSilence();
 				_peer.Flush();
-				Thread.Sleep(1);
 			}
 			catch (Exception ex)
 			{
@@ -218,11 +217,12 @@ public class NetworkInstance
 
 	private void ProcessNetwork()
 	{
+		Godot.Collections.Array serviceData = _peer.Service(MinimumTimeout);
 		while (true)
 		{
-			Godot.Collections.Array serviceData = _peer.Service(MinimumTimeout);
-
 			ENetConnection.EventType eventType = (ENetConnection.EventType)(int)serviceData[0];
+			if (eventType == ENetConnection.EventType.None)
+				break;
 			ENetPacketPeer? fromPeer = (ENetPacketPeer?)serviceData[1];
 			int peerID = 0;
 			if (fromPeer != null)
@@ -312,6 +312,8 @@ public class NetworkInstance
 				}).CallDeferred();
 			}
 			else if (eventType == ENetConnection.EventType.None) return;
+
+			serviceData = _peer.Service(0);
 		}
 	}
 
