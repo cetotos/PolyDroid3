@@ -439,7 +439,9 @@ public sealed partial class Camera : Dynamic
 
 			if ((IsFirstPerson || AlwaysLocked) && Root.Input.IsGameFocused)
 			{
+				// Force mouse captured
 				Input.MouseMode = Input.MouseModeEnum.Captured;
+				Root.Input.OverrideMousePosTo = GDNode.GetViewport().GetVisibleRect().GetCenter().Flip();
 			}
 
 			if (_targetZoom <= 0)
@@ -573,7 +575,6 @@ public sealed partial class Camera : Dynamic
 		IsFirstPerson = true;
 		_targetZoom = 0;
 		StartTurning();
-		Root.Input.OverrideMousePosTo = GDNode.GetViewport().GetVisibleRect().GetCenter().Flip();
 		FirstPersonEntered?.Invoke();
 	}
 
