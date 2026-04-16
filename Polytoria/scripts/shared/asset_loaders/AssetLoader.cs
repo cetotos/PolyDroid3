@@ -25,7 +25,7 @@ public partial class AssetLoader : Node
 	public static AssetLoader Singleton { get; private set; } = null!;
 	public bool UseAssetLoader { get; set; } = true;
 
-	private const int MaxConcurrentRequests = 2;
+	private const int MaxConcurrentRequests = 1;
 
 	private long _assetSizeBytes = 0;
 	internal long AssetSizeBytes => _assetSizeBytes;
