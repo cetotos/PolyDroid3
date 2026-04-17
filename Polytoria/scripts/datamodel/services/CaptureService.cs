@@ -41,7 +41,7 @@ public sealed partial class CaptureService : Instance
 		GDNode.AddChild(_shutterSound = new(), false, Node.InternalMode.Front);
 		_shutterSound.Stream = GD.Load<AudioStream>(CaptureSoundPath);
 
-		SetProcess(false);
+		SetProcess(true);
 		base.Init();
 	}
 

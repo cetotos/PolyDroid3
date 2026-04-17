@@ -34,6 +34,8 @@ public sealed partial class CreatorSelections : Instance
 	{
 		GDNode.AddChild(_inputHelper = new());
 		_inputHelper.GodotUnhandledInputEvent += OnUnhandledInput;
+
+		SetProcess(true);
 		base.Init();
 	}
 
