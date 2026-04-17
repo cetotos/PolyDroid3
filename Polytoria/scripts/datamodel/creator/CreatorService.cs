@@ -528,6 +528,8 @@ public sealed partial class CreatorService : Node, IScriptObject
 			args.InsertRange(0, ["-ctoken", PolyCreatorAPI.Token]);
 		}
 
+		args.AddRange("--rendering-method", RenderingDeviceSwitcher.GetCurrentDriverName());
+
 		LocalTestWorlds.Add(placeFilePath);
 
 		int procID = OS.CreateProcess(exePath, [.. args]);
