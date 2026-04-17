@@ -20,7 +20,7 @@ public sealed partial class UIMenuPlayers : UIMenuViewBase
 	{
 		_playerCardScene = GD.Load<PackedScene>("res://scenes/client/ui/menu/components/player_card.tscn");
 		_players = CoreUIRoot.Singleton.Root.Players;
-		_players.PlayerReady += AddPlayer;
+		_players.PlayerAdded.Connect(AddPlayer);
 		_players.PlayerRemoved.Connect(RemovePlayer);
 		foreach (Instance item in _players.GetPlayers())
 		{

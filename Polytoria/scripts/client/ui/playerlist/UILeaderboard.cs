@@ -25,6 +25,7 @@ public partial class UILeaderboard : Control
 
 	private Datamodel.Stats Stats => CoreUI.Root.Stats;
 	private Teams Teams => CoreUI.Root.Teams;
+	private World World => CoreUI.Root;
 
 	public bool IsLeaderboardShown = true;
 
@@ -38,7 +39,7 @@ public partial class UILeaderboard : Control
 	{
 		_players = CoreUI.Root.Players;
 
-		_players.PlayerReady += AddPlayer;
+		_players.PlayerAdded.Connect(AddPlayer);
 		_players.PlayerRemoved.Connect(RemovePlayer);
 
 		Stats.StatAdded.Connect(StatChanged);
@@ -55,14 +56,14 @@ public partial class UILeaderboard : Control
 
 	public override void _ExitTree()
 	{
-		_players.PlayerReady -= AddPlayer;
+		_players.PlayerAdded.Disconnect(AddPlayer);
 		_players.PlayerRemoved.Disconnect(RemovePlayer);
 
 		Stats.StatAdded.Disconnect(StatChanged);
 		Stats.StatRemoved.Disconnect(StatChanged);
 
 		Teams.TeamAdded.Disconnect(TeamChanged);
-		Teams.TeamAdded.Disconnect(TeamChanged);
+		Teams.TeamRemoved.Disconnect(TeamChanged);
 
 		Teams.TeamUpdateDispatch -= QueueSortList;
 

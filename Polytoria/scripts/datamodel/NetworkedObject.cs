@@ -915,13 +915,13 @@ public partial class NetworkedObject : IScriptObject
 
 	internal void InvokePropReady()
 	{
-		Root?.Network?.ReplicateSync.CountInstanceLoaded(this);
-
 		// Flush pending outright (for objects that may exists before, such as SunLight/Camera)
 		if (Root != null && Root.Network != null)
 		{
 			FlushPendings();
 		}
+
+		Root?.Network?.ReplicateSync.CountInstanceLoaded(this);
 
 		if (IsPropReady) return;
 		IsPropReady = true;

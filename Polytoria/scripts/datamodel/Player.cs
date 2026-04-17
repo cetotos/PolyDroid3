@@ -732,7 +732,6 @@ public sealed partial class Player : NPC
 	// Emit when this player is ready, fired for everyone
 	private void OnPlayerReady()
 	{
-		Root.Players.DispatchPlayerReady(this);
 		SetNetworkAuthority(PeerID);
 		UpdatePlayerCollision();
 		UpdatePlrReady();
