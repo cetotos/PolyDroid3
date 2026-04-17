@@ -18,21 +18,27 @@ namespace Polytoria.Datamodel;
 [Abstract]
 public partial class Physical : Dynamic
 {
+	private static readonly Dictionary<CollisionObject3D, Physical> _bodyToPhysical = [];
+	private static readonly Dictionary<Node, Physical> _proxyToPhysical = [];
+
+	private const string TouchAreaNodesMeta = "_touch_area_nodes";
+	private const string CollisionSyncNodesMeta = "_collision_sync_nodes";
+
 	public virtual float SyncInterval { get; protected set; } = 0.1f;
 	private const float TouchedGapCheck = 20f;
 	private bool _anchored = true;
 	private bool _canCollide = true;
 	private Vector3 _velocity = Vector3.Zero;
 	private Vector3 _angularVelocity = Vector3.Zero;
-	internal Area3D PhysicalArea = null!;
+	private CollisionObject3D? _registeredCollisionBody;
+
 
 	private int _touchedListenerCount = 0;
 	private bool _canTouch = false;
 
 	private double _syncClock = 0;
 
-	private readonly HashSet<Physical> _touchedBy = [];
-	private static readonly Dictionary<Node, Physical> _proxyToPhysical = [];
+	private readonly Dictionary<Physical, int> _touchContacts = [];
 
 	public List<CollisionShape3D> CollisionShapes = [];
 	public List<CollisionShape3D> AreaCollisionShapes = [];
@@ -47,6 +53,8 @@ public partial class Physical : Dynamic
 
 	public event Action<CollisionShape3D>? CollisionShapeAdded;
 	public event Action<CollisionShape3D>? CollisionShapeRemoved;
+
+	internal Area3D? PhysicalArea { get; private set; }
 
 	[Editable, ScriptProperty]
 	public virtual bool Anchored
@@ -248,13 +256,13 @@ public partial class Physical : Dynamic
 	{
 		UpdateCollision();
 
-		if (!to)
+		if (!to && PhysicalArea != null)
 		{
 			// create pending shapes
 			foreach (var shape in _pendingAreaShapes.ToArray())
 			{
 				if (Node.IsInstanceValid(shape))
-					CreateAreaShapeInternal(shape);
+					CreateAreaShape(shape);
 			}
 
 			_pendingAreaShapes.Clear();
@@ -274,17 +282,21 @@ public partial class Physical : Dynamic
 		while (current != null)
 		{
 			Type ct = current.GetType();
-			if (Parent is PhysicalModel pr)
+
+			if (current is PhysicalModel pr)
 			{
 				PhysicalRoot = pr;
 				break;
 			}
+
 			if (ct.IsDefined(typeof(PhysicalRootStopAttribute), false))
 			{
 				break;
 			}
+
 			current = current.Parent;
 		}
+
 		base.EnterTree();
 
 		foreach (CollisionShape3D item in CollisionShapes.ToArray())
@@ -295,21 +307,6 @@ public partial class Physical : Dynamic
 
 	public override void Init()
 	{
-		PhysicalArea = new()
-		{
-			Monitorable = true,
-			Monitoring = _canTouch
-		};
-		PhysicalArea.SetCollisionMaskValue(2, true);
-		PhysicalArea.AreaEntered += AreaEntered;
-		PhysicalArea.AreaExited += AreaExited;
-
-		// A little bit bigger
-		PhysicalArea.Scale = new(1.01f, 1.01f, 1.01f);
-
-		_proxyToPhysical.Add(PhysicalArea, this);
-		GDNode3D.AddChild(PhysicalArea, false, Node.InternalMode.Front);
-
 		Touched.Subscribed += OnTouchSubscribed;
 		Touched.Unsubscribed += OnTouchUnsubscribed;
 
@@ -318,7 +315,6 @@ public partial class Physical : Dynamic
 
 		base.Init();
 
-		// Apply freeze first so velocity doesn't get lost
 		ApplyFreeze(true);
 
 		if (this is Entity e)
@@ -337,26 +333,35 @@ public partial class Physical : Dynamic
 				Root.Loaded.Once(OnRootReady);
 			}
 		}
-
-		// init area3d shapes
-		foreach (CollisionShape3D item in CollisionShapes.ToArray())
-		{
-			CreateAreaShape(item);
-		}
 	}
 
 	public override void PreDelete()
 	{
+		ClearCollisionBody();
 		Root?.Loaded.Disconnect(OnRootReady);
-		_proxyToPhysical.Remove(PhysicalArea);
+		// _proxyToPhysical.Remove(PhysicalArea);
+		if (PhysicalArea != null)
+		{
+			_proxyToPhysical.Remove(PhysicalArea);
+
+			PhysicalArea.AreaEntered -= AreaEntered;
+			PhysicalArea.AreaExited -= AreaExited;
+
+			PhysicalArea.BodyShapeEntered -= BodyShapeEntered;
+			PhysicalArea.BodyShapeExited -= BodyShapeExited;
+
+			if (Node.IsInstanceValid(PhysicalArea))
+			{
+				PhysicalArea.QueueFree();
+			}
+
+			PhysicalArea = null;
+		}
 
 		AreaCollisionShapes.Clear();
 		CollisionRootShapes.Clear();
 		CollisionShapes.Clear();
-		_touchedBy.Clear();
-
-		PhysicalArea.AreaEntered -= AreaEntered;
-		PhysicalArea.AreaExited -= AreaExited;
+		_touchContacts.Clear();
 
 		Touched.Subscribed -= OnTouchSubscribed;
 		Touched.Unsubscribed -= OnTouchUnsubscribed;
@@ -369,9 +374,56 @@ public partial class Physical : Dynamic
 
 	public override void Ready()
 	{
+		RefreshCollisionBody();
+
+		foreach (CollisionShape3D shape in CollisionShapes.ToArray())
+		{
+			AttachCollisionShape(shape);
+			EnsureRemoteTransform(shape);
+		}
+
 		UpdateCollision();
 		UpdateFreeze();
 		base.Ready();
+	}
+
+	private CollisionObject3D? GetCollisionObject()
+	{
+		return GDNode as CollisionObject3D;
+	}
+
+	private void RefreshCollisionBody()
+	{
+		CollisionObject3D? body = GetCollisionObject();
+		if (_registeredCollisionBody == body)
+			return;
+
+		if (_registeredCollisionBody != null)
+		{
+			_bodyToPhysical.Remove(_registeredCollisionBody);
+		}
+
+		_registeredCollisionBody = body;
+
+		if (body != null)
+		{
+			_bodyToPhysical[body] = this;
+		}
+	}
+
+	private void ClearCollisionBody()
+	{
+		if (_registeredCollisionBody != null)
+		{
+			_bodyToPhysical.Remove(_registeredCollisionBody);
+			_registeredCollisionBody = null;
+		}
+	}
+
+	public static Physical? GetPhysicalFromBody(CollisionObject3D body)
+	{
+		if (_bodyToPhysical.TryGetValue(body, out Physical? val)) return val;
+		return null;
 	}
 
 	private void OnTouchSubscribed()
@@ -396,12 +448,17 @@ public partial class Physical : Dynamic
 
 	internal void EnableCanTouch()
 	{
+		EnsureTouchArea();
+
 		if (!_canTouch)
 		{
 			_canTouch = true;
 			PT.CallOnMainThread(() =>
 			{
-				PhysicalArea.Monitoring = true;
+				if (PhysicalArea != null)
+				{
+					PhysicalArea.Monitoring = true;
+				}
 			});
 		}
 	}
@@ -413,7 +470,10 @@ public partial class Physical : Dynamic
 			_canTouch = false;
 			PT.CallOnMainThread(() =>
 			{
-				PhysicalArea.Monitoring = false;
+				if (PhysicalArea != null)
+				{
+					PhysicalArea.Monitoring = false;
+				}
 			});
 		}
 	}
@@ -466,6 +526,8 @@ public partial class Physical : Dynamic
 	{
 		if (CollisionShapes.Contains(collisionShape)) return;
 		CollisionShapes.Add(collisionShape);
+		AttachCollisionShape(collisionShape);
+		EnsureRemoteTransform(collisionShape);
 		CollisionShapeAdded?.Invoke(collisionShape);
 
 		CreateAreaShape(collisionShape);
@@ -492,35 +554,10 @@ public partial class Physical : Dynamic
 		CollisionShapes.Remove(collisionShape);
 		_pendingAreaShapes.Remove(collisionShape);
 
-		if (collisionShape.HasMeta("_area_nodes"))
-		{
-			var createdNodes = collisionShape.GetMeta("_area_nodes").As<Godot.Collections.Array>();
+		CleanupMetaNodes(collisionShape, TouchAreaNodesMeta, true);
+		CleanupMetaNodes(collisionShape, CollisionSyncNodesMeta, false);
 
-			if (createdNodes != null)
-			{
-				foreach (var nodeVariant in createdNodes)
-				{
-					Node node = nodeVariant.As<Node>();
-					if (node != null && Node.IsInstanceValid(node))
-					{
-						// Remove from AreaCollisionShapes
-						if (node is CollisionShape3D shape)
-						{
-							AreaCollisionShapes.Remove(shape);
-						}
-
-						node.QueueFree();
-					}
-				}
-			}
-
-			collisionShape.RemoveMeta("_area_nodes");
-		}
-
-		if (collisionShape.GetParentOrNull<Node>() != GDNode)
-		{
-			collisionShape.Reparent(GDNode);
-		}
+		RevertCollisionShape(collisionShape);
 
 		CollisionShapeRemoved?.Invoke(collisionShape);
 
@@ -528,6 +565,31 @@ public partial class Physical : Dynamic
 		{
 			collisionShape.QueueFree();
 		}
+	}
+
+	private void CleanupMetaNodes(CollisionShape3D collisionShape, string key, bool removeAreaShapes)
+	{
+		if (!collisionShape.HasMeta(key)) return;
+
+		var createdNodes = collisionShape.GetMeta(key).As<Godot.Collections.Array>();
+		if (createdNodes != null)
+		{
+			foreach (var nodeVariant in createdNodes)
+			{
+				Node node = nodeVariant.As<Node>();
+				if (node != null && Node.IsInstanceValid(node))
+				{
+					if (removeAreaShapes && node is CollisionShape3D shape)
+					{
+						AreaCollisionShapes.Remove(shape);
+					}
+
+					node.QueueFree();
+				}
+			}
+		}
+
+		collisionShape.RemoveMeta(key);
 	}
 
 	protected void ClearCollisionShapes()
@@ -553,9 +615,68 @@ public partial class Physical : Dynamic
 		CreateAreaShapeInternal(origin);
 	}
 
+	private Node3D CreateRemoteLinkNode(CollisionShape3D origin, Node target)
+	{
+		Node3D scaleNode = new();
+		RemoteTransform3D rt = new()
+		{
+			UseGlobalCoordinates = true
+		};
+		scaleNode.AddChild(rt);
+
+		if (origin.HasMeta("_remote_at"))
+		{
+			origin.GetMeta("_remote_at").As<Node>()?.AddChild(scaleNode);
+		}
+		else
+		{
+			GDNode.AddChild(scaleNode);
+		}
+
+		if (origin.HasMeta("_remote_offset"))
+		{
+			scaleNode.Position = origin.GetMeta("_remote_offset").As<Vector3>();
+		}
+		else
+		{
+			scaleNode.Position = Vector3.Zero;
+		}
+
+		rt.RemotePath = rt.GetPathTo(target);
+		return scaleNode;
+	}
+
+	private void EnsureRemoteTransform(CollisionShape3D origin)
+	{
+		if (!Node.IsInstanceValid(origin)) return;
+
+		if (origin.HasMeta(CollisionSyncNodesMeta))
+		{
+			var existing = origin.GetMeta(CollisionSyncNodesMeta).As<Godot.Collections.Array>();
+			if (existing != null)
+			{
+				foreach (var item in existing)
+				{
+					Node n = item.As<Node>();
+					if (n != null && Node.IsInstanceValid(n))
+					{
+						return;
+					}
+				}
+			}
+
+			origin.RemoveMeta(CollisionSyncNodesMeta);
+		}
+
+		Godot.Collections.Array<Node> createdNodes = [];
+		Node3D scaleNode = CreateRemoteLinkNode(origin, origin);
+		createdNodes.Add(scaleNode);
+		origin.SetMeta(CollisionSyncNodesMeta, createdNodes);
+	}
+
 	private void CreateAreaShapeInternal(CollisionShape3D origin)
 	{
-		if (PhysicalArea == null || !Node.IsInstanceValid(origin)) return;
+		if (PhysicalArea == null || !Node.IsInstanceValid(origin) || origin.Shape == null) return;
 
 		Shape3D sharedShape = origin.Shape;
 		Godot.Collections.Array<Node> createdNodes = [];
@@ -607,54 +728,20 @@ public partial class Physical : Dynamic
 			return newShape;
 		}
 
-		RemoteTransform3D CreateRemoteTransform(Node target)
-		{
-			Node3D scaleNode = new();
-
-			RemoteTransform3D rt = new()
-			{
-				UseGlobalCoordinates = true
-			};
-
-			if (origin.HasMeta("_remote_at"))
-			{
-				origin.GetMeta("_remote_at").As<Node>()?.AddChild(scaleNode);
-			}
-			else
-			{
-				GDNode.AddChild(scaleNode);
-			}
-
-			scaleNode.AddChild(rt);
-
-			// Apply manual offset if found
-			if (origin.HasMeta("_remote_offset"))
-			{
-				scaleNode.Position = origin.GetMeta("_remote_offset").As<Vector3>();
-			}
-			else
-			{
-				scaleNode.Position = Vector3.Zero;
-			}
-
-			rt.RemotePath = rt.GetPathTo(target);
-			createdNodes.Add(rt);
-			return rt;
-		}
-
 		var areaShape = CreateLinkedShape(PhysicalArea);
 		AreaCollisionShapes.Add(areaShape);
 
 		// Handle Physical Root
 		if (PhysicalRoot != null)
 		{
-			origin.Reparent(PhysicalRoot.GDNode);
-			origin.GlobalTransform = GetGlobalTransform();
-			var areaShape2 = CreateLinkedShape(PhysicalRoot.PhysicalArea);
-			AreaCollisionShapes.Add(areaShape2);
-		}
+			PhysicalRoot.EnsureTouchArea();
 
-		CreateRemoteTransform(origin);
+			if (PhysicalRoot.PhysicalArea != null)
+			{
+				var areaShape2 = CreateLinkedShape(PhysicalRoot.PhysicalArea);
+				AreaCollisionShapes.Add(areaShape2);
+			}
+		}
 
 		// Store all created nodes in origin's metadata for cleanup
 		origin.SetMeta("_area_nodes", createdNodes);
@@ -664,6 +751,67 @@ public partial class Physical : Dynamic
 	{
 		if (_proxyToPhysical.TryGetValue(collider, out Physical? val)) return val;
 		return null;
+	}
+
+	public static Physical? GetPhysicalFromBodyShape(CollisionObject3D body, int shapeIndex)
+	{
+		if (_bodyToPhysical.TryGetValue(body, out Physical? val))
+			return val;
+
+		return null;
+	}
+
+	private Node GetCollisionShapeRoot()
+	{
+		if (PhysicalRoot != null)
+		{
+			return PhysicalRoot.GDNode;
+		}
+
+		return GDNode;
+	}
+
+	private void AttachCollisionShape(CollisionShape3D origin)
+	{
+		if (!Node.IsInstanceValid(origin)) return;
+
+		Node targetRoot = GetCollisionShapeRoot();
+		if (!Node.IsInstanceValid(targetRoot)) return;
+
+		if (origin.GetParent() == targetRoot)
+		{
+			if (!CollisionRootShapes.Contains(origin))
+			{
+				CollisionRootShapes.Add(origin);
+			}
+			return;
+		}
+
+		Transform3D global = origin.GlobalTransform;
+
+		origin.Reparent(targetRoot);
+		origin.GlobalTransform = global;
+
+		CollisionRootShapes.Remove(origin);
+		CollisionRootShapes.Add(origin);
+	}
+
+	private void RevertCollisionShape(CollisionShape3D origin)
+	{
+		if (!Node.IsInstanceValid(origin)) return;
+
+		if (origin.GetParent() == GDNode)
+		{
+			CollisionRootShapes.Remove(origin);
+			return;
+		}
+
+		Transform3D global = origin.GlobalTransform;
+
+		origin.Reparent(GDNode);
+		origin.GlobalTransform = global;
+
+		CollisionRootShapes.Remove(origin);
 	}
 
 	internal void ApplyForceFromPlayer(Vector3 force)
@@ -691,13 +839,38 @@ public partial class Physical : Dynamic
 		}
 	}
 
+	private void BodyShapeEntered(Rid bodyRid, Node3D body, long bodyShapeIndex, long localShapeIndex)
+	{
+		if (body is not CollisionObject3D collisionBody)
+			return;
+
+		Physical? p = GetPhysicalFromBodyShape(collisionBody, (int)bodyShapeIndex);
+		if (p != null)
+		{
+			InternalInvokeTouched(p);
+		}
+	}
+
+	private void BodyShapeExited(Rid bodyRid, Node3D body, long bodyShapeIndex, long localShapeIndex)
+	{
+		if (body is not CollisionObject3D collisionBody)
+			return;
+
+		Physical? p = GetPhysicalFromBodyShape(collisionBody, (int)bodyShapeIndex);
+		if (p != null)
+		{
+			InternalInvokeTouchEnded(p);
+		}
+	}
+
 	internal Rid GetRid()
 	{
 		if (PhysicalArea != null)
 		{
 			return PhysicalArea.GetRid();
 		}
-		return ((CollisionObject3D)GDNode).GetRid();
+
+		return GetCollisionObject()?.GetRid() ?? default;
 	}
 
 	internal void InvokeTouched(Physical hit)
@@ -766,25 +939,38 @@ public partial class Physical : Dynamic
 
 	private void InternalInvokeTouched(Physical physical)
 	{
-		if (_touchedBy.Contains(physical)) return;
+		if (physical == this) return;
 		// Ignore dead NPCs, their position could be inaccurate
 		if (physical is NPC npc && npc.IsDead) return;
 
 		// Ignore player that's not ready
 		if (physical is Player plr && !plr.IsReady) return;
 
-		_touchedBy.Add(physical);
+		if (_touchContacts.TryGetValue(physical, out int count))
+		{
+			_touchContacts[physical] = count + 1;
+			return;
+		}
 
+		_touchContacts[physical] = 1;
 		Touched.Invoke(physical);
 	}
 
 	private void InternalInvokeTouchEnded(Physical physical)
 	{
-		_touchedBy.Remove(physical);
-
 		// Ignore player that's not ready
 		if (physical is Player plr && !plr.IsReady) return;
 
+		if (!_touchContacts.TryGetValue(physical, out int count))
+			return;
+
+		if (count > 1)
+		{
+			_touchContacts[physical] = count - 1;
+			return;
+		}
+
+		_touchContacts.Remove(physical);
 		TouchEnded.Invoke(physical);
 	}
 
@@ -793,20 +979,53 @@ public partial class Physical : Dynamic
 		Clicked.Invoke(by);
 	}
 
+	private void EnsureTouchArea()
+	{
+		if (PhysicalArea != null) return;
+		if (!Node.IsInstanceValid(GDNode3D)) return;
+
+		PhysicalArea = new()
+		{
+			Monitorable = true,
+			Monitoring = _canTouch,
+			Scale = new(1.01f, 1.01f, 1.01f)
+		};
+
+		PhysicalArea.SetCollisionMaskValue(2, true);
+
+		PhysicalArea.AreaEntered += AreaEntered;
+		PhysicalArea.AreaExited += AreaExited;
+
+		PhysicalArea.BodyShapeEntered += BodyShapeEntered;
+		PhysicalArea.BodyShapeExited += BodyShapeExited;
+
+		_proxyToPhysical[PhysicalArea] = this;
+		GDNode3D.AddChild(PhysicalArea, false, Node.InternalMode.Front);
+
+		foreach (CollisionShape3D item in CollisionShapes)
+		{
+			CreateAreaShape(item);
+		}
+	}
+
 	[ScriptMethod]
 	public Physical[] GetTouching()
 	{
 		EnableCanTouch();
+
+		if (_touchContacts.Count == 0)
+			return [];
+
 		List<Physical> phys = [];
-		var area3ds = PhysicalArea.GetOverlappingAreas();
-		foreach (Area3D item in area3ds)
+
+		foreach (var (physical, _) in _touchContacts)
 		{
-			Physical? phy = GetPhysicalFromCollider(item);
-			if (phy != null)
-			{
-				phys.Add(phy);
-			}
+			if (physical == null || physical.IsDeleted)
+				continue;
+
+			phys.Add(physical);
 		}
+
 		return [.. phys];
 	}
 

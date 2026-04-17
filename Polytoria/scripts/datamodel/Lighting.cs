@@ -107,7 +107,7 @@ public sealed partial class Lighting : Instance
 				setTo = false;
 			}
 			environment.SsaoEnabled = setTo;
-			environment.GlowEnabled = true;
+			environment.GlowEnabled = setTo;
 		}
 		environment.SsrEnabled = photoMode;
 		environment.SdfgiEnabled = photoMode;
