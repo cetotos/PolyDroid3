@@ -189,6 +189,9 @@ public sealed partial class ClientEntry : Node3D
 		};
 		AddChild(settings, true, InternalMode.Front);
 
+		// Use init flow in case it can be stopped by Rendering device switcher
+		settings.Init();
+
 		settings.AddChild(new DisplaySettingsApplier { Name = "DisplaySettingsApplier" }, true, InternalMode.Front);
 		settings.AddChild(new AudioSettingsApplier { Name = "AudioSettingsApplier" }, true, InternalMode.Front);
 		settings.AddChild(new GraphicsSettingsApplier { Name = "GraphicsSettingsApplier" }, true, InternalMode.Front);

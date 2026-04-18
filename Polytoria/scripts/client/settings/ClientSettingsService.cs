@@ -1,11 +1,11 @@
+using Godot;
+using Polytoria.Shared;
+using Polytoria.Shared.Settings;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
-using Godot;
-using Polytoria.Shared;
-using Polytoria.Shared.Settings;
 using FileAccess = Godot.FileAccess;
 
 namespace Polytoria.Client.Settings;
@@ -26,10 +26,8 @@ public sealed partial class ClientSettingsService : Node, ISettingsContext
 		Instance = this;
 	}
 
-	public override void _Ready()
+	public void Init()
 	{
-		base._Ready();
-
 		bool settingsExists = FileAccess.FileExists(SettingsPath);
 		Load();
 		ApplyDefaults();
