@@ -128,6 +128,11 @@ public partial class Part : Entity
 		get => _shape;
 		set
 		{
+			if (_shape == value)
+			{
+				return;
+			}
+
 			_shape = value;
 
 			UpdateShape();
@@ -141,6 +146,11 @@ public partial class Part : Entity
 		get => _material;
 		set
 		{
+			if (_material == value)
+			{
+				return;
+			}
+
 			_material = value;
 
 			UpdateMaterial();
@@ -154,6 +164,11 @@ public partial class Part : Entity
 		get => _color;
 		set
 		{
+			if (_color == value)
+			{
+				return;
+			}
+
 			_color = value;
 			//GD.PushWarning("Set color: ", _color);
 
@@ -168,6 +183,11 @@ public partial class Part : Entity
 		get => _castShadows;
 		set
 		{
+			if (_castShadows == value)
+			{
+				return;
+			}
+
 			_castShadows = value;
 
 			UpdateShadow();

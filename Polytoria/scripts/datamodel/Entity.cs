@@ -34,6 +34,11 @@ public abstract partial class Entity : Physical
 		get => _color;
 		set
 		{
+			if (_color == value)
+			{
+				return;
+			}
+
 			_color = value;
 			OnPropertyChanged();
 		}
@@ -45,6 +50,11 @@ public abstract partial class Entity : Physical
 		get => _castShadows;
 		set
 		{
+			if (_castShadows == value)
+			{
+				return;
+			}
+
 			_castShadows = value;
 			OnPropertyChanged();
 		}
@@ -56,6 +66,11 @@ public abstract partial class Entity : Physical
 		get => _isSpawn;
 		set
 		{
+			if (_isSpawn == value)
+			{
+				return;
+			}
+
 			_isSpawn = value;
 
 			if (_isSpawn)
@@ -75,6 +90,11 @@ public abstract partial class Entity : Physical
 		get => _useGravity;
 		set
 		{
+			if (_useGravity == value)
+			{
+				return;
+			}
+
 			_useGravity = value;
 
 			RigidBody.GravityScale = value ? 2 : 0;
@@ -89,6 +109,11 @@ public abstract partial class Entity : Physical
 		get => _mass;
 		set
 		{
+			if (_mass == value)
+			{
+				return;
+			}
+
 			_mass = value;
 
 			RigidBody.Mass = Math.Max(_mass, MinMass);
@@ -103,6 +128,11 @@ public abstract partial class Entity : Physical
 		get => _friction;
 		set
 		{
+			if (_friction == value)
+			{
+				return;
+			}
+
 			_friction = value;
 			PhysicsMat.Friction = value;
 			OnPropertyChanged();
@@ -115,6 +145,11 @@ public abstract partial class Entity : Physical
 		get => _drag;
 		set
 		{
+			if (_drag == value)
+			{
+				return;
+			}
+
 			_drag = value;
 			RigidBody.LinearDamp = value;
 			OnPropertyChanged();
@@ -127,6 +162,11 @@ public abstract partial class Entity : Physical
 		get => _angularDrag;
 		set
 		{
+			if (_angularDrag == value)
+			{
+				return;
+			}
+
 			_angularDrag = value;
 			RigidBody.AngularDamp = value;
 			OnPropertyChanged();
@@ -139,6 +179,11 @@ public abstract partial class Entity : Physical
 		get => _bounciness;
 		set
 		{
+			if (_bounciness == value)
+			{
+				return;
+			}
+
 			_bounciness = value;
 
 			PhysicsMat.Bounce = value;

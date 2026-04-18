@@ -185,6 +185,11 @@ public partial class Instance : NetworkedObject
 		get => _isHidden;
 		set
 		{
+			if (_isHidden == value)
+			{
+				return;
+			}
+
 			_isHidden = value;
 			InvokeHiddenChanged();
 			OnPropertyChanged();
@@ -255,6 +260,11 @@ public partial class Instance : NetworkedObject
 		get => _tags;
 		set
 		{
+			if (_tags.SequenceEqual(value))
+			{
+				return;
+			}
+
 			_tags = value;
 			OnPropertyChanged();
 		}
@@ -266,6 +276,11 @@ public partial class Instance : NetworkedObject
 		get => _archivable;
 		set
 		{
+			if (_archivable == value)
+			{
+				return;
+			}
+
 			_archivable = value;
 			OnPropertyChanged();
 		}

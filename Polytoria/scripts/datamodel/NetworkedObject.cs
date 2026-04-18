@@ -162,6 +162,11 @@ public partial class NetworkedObject : IScriptObject
 		get => _name;
 		set
 		{
+			if (_name == value)
+			{
+				return;
+			}
+
 			if (GetType().IsDefined(typeof(StaticAttribute), false))
 				throw new InvalidOperationException($"Cannot set Name on static type '{GetType().Name}'.");
 			if (string.IsNullOrWhiteSpace(value))

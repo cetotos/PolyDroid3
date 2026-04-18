@@ -210,6 +210,11 @@ public partial class Dynamic : Instance
 		get => _locked;
 		set
 		{
+			if (_locked == value)
+			{
+				return;
+			}
+
 			_locked = value;
 
 #if CREATOR

@@ -62,6 +62,11 @@ public partial class Physical : Dynamic
 		get => _anchored;
 		set
 		{
+			if (_anchored == value)
+			{
+				return;
+			}
+
 			bool oldVal = _anchored;
 			_anchored = value;
 
@@ -80,6 +85,11 @@ public partial class Physical : Dynamic
 		get => _canCollide;
 		set
 		{
+			if (_canCollide == value)
+			{
+				return;
+			}
+
 			_canCollide = value;
 
 			UpdateCollision();
