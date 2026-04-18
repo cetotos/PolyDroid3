@@ -770,6 +770,13 @@ public partial class LuaState : IDisposable
 		lock (_lock)
 			NativeBindings.lua_remove(_state, idx);
 	}
+
+	public void SetReadOnly(int idx, bool to)
+	{
+		lock (_lock)
+			NativeBindings.lua_setreadonly(_state, idx, to ? 1 : 0);
+	}
+
 	public void Call(int nargs, int nresults)
 	{
 		lock (_lock)

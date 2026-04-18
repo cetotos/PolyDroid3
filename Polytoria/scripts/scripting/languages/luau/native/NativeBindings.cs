@@ -378,4 +378,8 @@ internal partial class NativeBindings
 	[LibraryImport(LuaLibraryName)]
 	[UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
 	internal static partial int lua_checkstack(IntPtr L, int sz);
+
+	[LibraryImport(LuaLibraryName)]
+	[UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+	internal static partial void lua_setreadonly(IntPtr L, int i, int b);
 }
