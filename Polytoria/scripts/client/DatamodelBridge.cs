@@ -263,7 +263,7 @@ public partial class DatamodelBridge : Node3D
 
 			_handles[lastPart] = new PartHandle { Key = handle.Key, Index = index };
 			batch.MultiMesh.SetInstanceTransform(index, lastPart.GetGlobalTransform());
-			batch.MultiMesh.SetInstanceColor(index, lastPart.Color);
+			batch.MultiMesh.SetInstanceColor(index, lastPart.Color.SrgbToLinear());
 			// batch.MultiMesh.SetInstanceCustomData(index, GetCustomDataForPart(lastPart));
 		}
 
@@ -299,7 +299,7 @@ public partial class DatamodelBridge : Node3D
 		{
 			var p = batch.Parts[i];
 			batch.MultiMesh.SetInstanceTransform(i, p.GetGlobalTransform());
-			batch.MultiMesh.SetInstanceColor(i, p.Color);
+			batch.MultiMesh.SetInstanceColor(i, p.Color.SrgbToLinear());
 		}
 	}
 
