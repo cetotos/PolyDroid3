@@ -896,6 +896,9 @@ public sealed partial class LuauProvider : ScriptLanguageProvider
 		lua.PushCFunction(c.WrapCall, "__call");
 		lua.SetField(-2, "__call");
 
+		lua.PushBoolean(false);
+		lua.SetField(-2, "__metatable");
+
 		lua.SetMetaTable(-2);
 
 		return 1;
@@ -1454,6 +1457,9 @@ public sealed partial class LuauProvider : ScriptLanguageProvider
 			enumMeta.RegisterMetamethods();
 		}
 
+		lua.PushBoolean(false);
+		lua.SetField(-2, "__metatable");
+
 		lua.SetMetaTable(-2);
 	}
 
@@ -1528,6 +1534,9 @@ public sealed partial class LuauProvider : ScriptLanguageProvider
 
 			lua.PushString(ProcessTypeName(type));
 			lua.SetField(-2, "__type");
+
+			lua.PushBoolean(false);
+			lua.SetField(-2, "__metatable");
 		}
 
 		lua.SetMetaTable(-2);
