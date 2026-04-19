@@ -36,4 +36,4 @@ jobs:
           cd Polytoria
           dotnet restore
           godot --headless --verbose --build-solutions --quit
-          godot --headless --path . -dmtest -proj ../lua-tests
+          godot --headless --path . -dmtest -proj ../dm-tests
