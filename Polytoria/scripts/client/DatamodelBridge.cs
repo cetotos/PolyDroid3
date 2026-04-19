@@ -5,7 +5,9 @@
 using Godot;
 using Polytoria.Datamodel;
 using Polytoria.Shared;
+using System;
 using System.Collections.Generic;
+using System.Reflection.Metadata;
 
 namespace Polytoria.Client;
 
@@ -15,12 +17,17 @@ namespace Polytoria.Client;
 public partial class DatamodelBridge : Node3D
 {
 	private const float ChunkBaseSize = 64f;
+	private const uint MaxScaleLevel = 10;
+	private const uint DynamicChunkScaleFactor = 1; // dynamic parts have a larger chunk size because they cross chunk boundaries more often than static parts
+
 	private World Root = null!;
 	public long SeparatedPartCount = 0;
 
 	private Dictionary<Part, PartHandle> _handles = [];
-	private Dictionary<ChunkKey, ChunkBatch> _batches = [];
+	private Dictionary<Part, PartSubscription> _subscriptions = [];
+	private Dictionary<BatchKey, ChunkBatch> _batches = [];
 	private HashSet<Part> _dirty = [];
+	private HashSet<Part> _dynamics = [];
 	private Rid _scenario;
 
 	private Dictionary<(Part.PartMaterialEnum, bool), Material> _materials = [];
@@ -101,33 +108,15 @@ public partial class DatamodelBridge : Node3D
 		if (!isGameReady) return;
 		if (_dirty.Count == 0) return;
 
-		foreach (Part part in _dirty)
+		Part[] dirtyParts = [.. _dirty];
+		_dirty.Clear();
+
+		foreach (Part part in dirtyParts)
 		{
 			bool inBatch = _handles.TryGetValue(part, out PartHandle? handle);
 			bool shouldBatch = IsPartEligible(part);
 
-			if (shouldBatch)
-			{
-				ChunkKey newKey = GetKeyForPart(part);
-
-				if (!inBatch)
-				{
-					AddToBatch(part, newKey);
-				}
-				else if (!newKey.Equals(handle!.Key))
-				{
-					RemoveFromBatch(part);
-					AddToBatch(part, newKey);
-				}
-				else
-				{
-					ChunkBatch batch = _batches[handle.Key];
-					batch.MultiMesh.SetInstanceTransform(handle.Index, part.GetGlobalTransform());
-					batch.MultiMesh.SetInstanceColor(handle.Index, part.Color.SrgbToLinear());
-					batch.MultiMesh.SetInstanceCustomData(handle.Index, GetCustomDataForPart(part));
-				}
-			}
-			else
+			if (!shouldBatch)
 			{
 				if (inBatch)
 				{
@@ -138,14 +127,111 @@ public partial class DatamodelBridge : Node3D
 				{
 					part.CreateSeparateMesh();
 				}
+
+				continue;
+			}
+
+			BatchKey newKey = GetKeyForPart(part);
+
+			if (!inBatch)
+			{
+				AddToBatch(part, newKey);
+				continue;
+			}
+
+			if (!newKey.Equals(handle!.Key))
+			{
+				RemoveFromBatch(part);
+				AddToBatch(part, newKey);
+				continue;
+			}
+
+			if (_batches.TryGetValue(handle.Key, out ChunkBatch? batch))
+			{
+				UpdateInstanceData(batch, handle, part, !handle.Key.IsDynamic);
 			}
 		}
-
-		_dirty.Clear();
 	}
 
-	private static ChunkKey GetKeyForPart(Part part)
+	public override void _PhysicsProcess(double delta)
 	{
+		if (!isGameReady) return;
+		if (_dynamics.Count == 0) return;
+
+		Part[] dynamics = [.. _dynamics];
+
+		foreach (Part part in dynamics)
+		{
+			if (part.IsDeleted) continue;
+			if (!_handles.TryGetValue(part, out PartHandle? handle)) continue;
+			if (!handle.Key.IsDynamic) continue;
+			if (!_batches.TryGetValue(handle.Key, out ChunkBatch? batch)) continue;
+
+			BatchKey newKey = GetKeyForPart(part);
+
+			if (!newKey.Equals(handle.Key))
+			{
+				_dirty.Add(part);
+				continue;
+			}
+
+			Transform3D transform = part.GetGlobalTransform();
+			Color color = part.Color.SrgbToLinear();
+			Color customData = GetCustomDataForPart(part);
+
+			bool transformChanged = !handle.LastTransform.IsEqualApprox(transform);
+			bool colorChanged = !handle.LastColor.IsEqualApprox(color);
+			bool customChanged = !handle.LastCustomData.IsEqualApprox(customData);
+
+			if (!transformChanged && !colorChanged && !customChanged)
+			{
+				continue;
+			}
+
+			if (transformChanged)
+			{
+				batch.MultiMesh.SetInstanceTransform(handle.Index, transform);
+			}
+
+			if (colorChanged)
+			{
+				batch.MultiMesh.SetInstanceColor(handle.Index, color);
+			}
+
+			if (customChanged)
+			{
+				batch.MultiMesh.SetInstanceCustomData(handle.Index, customData);
+			}
+
+			handle.LastTransform = transform;
+			handle.LastColor = color;
+			handle.LastCustomData = customData;
+		}
+	}
+
+	private static void UpdateInstanceData(ChunkBatch batch, PartHandle handle, Part part, bool updateTransform = true)
+	{
+		Transform3D transform = part.GetGlobalTransform();
+		Color color = part.Color.SrgbToLinear();
+		Color customData = GetCustomDataForPart(part);
+
+		if (updateTransform)
+		{
+			batch.MultiMesh.SetInstanceTransform(handle.Index, transform);
+		}
+
+		batch.MultiMesh.SetInstanceColor(handle.Index, color);
+		batch.MultiMesh.SetInstanceCustomData(handle.Index, customData);
+
+		handle.LastTransform = transform;
+		handle.LastColor = color;
+		handle.LastCustomData = customData;
+	}
+
+	private static BatchKey GetKeyForPart(Part part)
+	{
+		bool isDynamic = !part.Anchored;
+
 		uint scaleLevel = 1;
 		float size = ChunkBaseSize;
 
@@ -154,12 +240,27 @@ public partial class DatamodelBridge : Node3D
 			size *= 2;
 			scaleLevel++;
 
-			if (scaleLevel > 10) break;
+			if (scaleLevel > MaxScaleLevel) break;
+		}
+
+		if (isDynamic)
+		{
+			scaleLevel = Math.Min(MaxScaleLevel, scaleLevel + DynamicChunkScaleFactor);
 		}
 
 
 		Vector3I coord = GetChunkCoord(part.Position, scaleLevel);
-		return new ChunkKey { Coord = coord, Material = part.Material, Shape = part.Shape, IsTransparent = part.Color.A < 1f, CastShadows = part.CastShadows, ScaleLevel = scaleLevel };
+
+		return new BatchKey
+		{
+			Coord = coord,
+			Material = part.Material,
+			Shape = part.Shape,
+			IsTransparent = part.Color.A < 1f,
+			CastShadows = part.CastShadows,
+			ScaleLevel = scaleLevel,
+			IsDynamic = isDynamic
+		};
 	}
 
 	private static Vector3I GetChunkCoord(Vector3 pos, uint scaleLevel = 1)
@@ -194,7 +295,7 @@ public partial class DatamodelBridge : Node3D
 		isGameReady = true;
 	}
 
-	private void AddToBatch(Part part, ChunkKey key)
+	private void AddToBatch(Part part, BatchKey key)
 	{
 		if (!_batches.TryGetValue(key, out var batch))
 		{
@@ -240,11 +341,24 @@ public partial class DatamodelBridge : Node3D
 		batch.Count++;
 		batch.MultiMesh.VisibleInstanceCount = batch.Count;
 
-		batch.MultiMesh.SetInstanceTransform(index, part.GetGlobalTransform());
-		batch.MultiMesh.SetInstanceColor(index, part.Color.SrgbToLinear());
-		batch.MultiMesh.SetInstanceCustomData(index, GetCustomDataForPart(part));
+		PartHandle handle = new()
+		{
+			Key = key,
+			Index = index
+		};
 
-		_handles[part] = new PartHandle { Key = key, Index = index };
+		_handles[part] = handle;
+
+		if (key.IsDynamic)
+		{
+			_dynamics.Add(part);
+		}
+		else
+		{
+			_dynamics.Remove(part);
+		}
+
+		UpdateInstanceData(batch, handle, part, true);
 	}
 
 	private void RemoveFromBatch(Part part)
@@ -252,6 +366,8 @@ public partial class DatamodelBridge : Node3D
 		if (!_handles.TryGetValue(part, out PartHandle? handle)) return;
 		if (!_batches.TryGetValue(handle.Key, out var batch))
 		{
+			_handles.Remove(part);
+			_dynamics.Remove(part);
 			return;
 		}
 
@@ -263,10 +379,11 @@ public partial class DatamodelBridge : Node3D
 			var lastPart = batch.Parts[lastIndex];
 			batch.Parts[index] = lastPart;
 
-			_handles[lastPart] = new PartHandle { Key = handle.Key, Index = index };
-			batch.MultiMesh.SetInstanceTransform(index, lastPart.GetGlobalTransform());
-			batch.MultiMesh.SetInstanceColor(index, lastPart.Color.SrgbToLinear());
-			batch.MultiMesh.SetInstanceCustomData(index, GetCustomDataForPart(lastPart));
+			PartHandle movedHandle = _handles[lastPart];
+			movedHandle.Index = index;
+			movedHandle.Key = handle.Key;
+
+			UpdateInstanceData(batch, movedHandle, lastPart, true);
 		}
 
 		batch.Parts.RemoveAt(lastIndex);
@@ -280,6 +397,7 @@ public partial class DatamodelBridge : Node3D
 		}
 
 		_handles.Remove(part);
+		_dynamics.Remove(part);
 	}
 
 	private static void ResizeBatch(ChunkBatch batch, int target)
@@ -305,7 +423,7 @@ public partial class DatamodelBridge : Node3D
 			batch.MultiMesh.SetInstanceCustomData(i, GetCustomDataForPart(p));
 		}
 	}
-	
+
 	private static Color GetCustomDataForPart(Part part)
 	{
 		float emissiveStrength = part.Material == Part.PartMaterialEnum.Neon ? 2.0f : 0.0f;
@@ -314,59 +432,73 @@ public partial class DatamodelBridge : Node3D
 
 	public void AddPart(Part part)
 	{
-		if (_handles.ContainsKey(part)) return;
-		if (!IsPartEligible(part))
-		{
-			part.CreateSeparateMesh();
-			return;
-		}
+		if (_subscriptions.ContainsKey(part)) return;
 
-		System.Action propertyChangedHandler = () => { if (isGameReady) _dirty.Add(part); };
+		Action<string> propertyChangedHandler = _ =>
+		{
+			if (!isGameReady) return;
+			_dirty.Add(part);
+		};
 
 		part.PropertyChanged.Connect(propertyChangedHandler);
 
-		var key = GetKeyForPart(part);
-		AddToBatch(part, key);
-
-		if (_handles.TryGetValue(part, out var handle))
+		_subscriptions[part] = new PartSubscription
 		{
-			handle.PropertyChangedHandler = propertyChangedHandler;
-		}
+			PropertyChangedHandler = propertyChangedHandler
+		};
 
-		_dirty.Add(part);
+		if (IsPartEligible(part))
+		{
+			AddToBatch(part, GetKeyForPart(part));
+			_dirty.Add(part);
+		}
+		else
+		{
+			part.CreateSeparateMesh();
+		}
 	}
 
 	public void RemovePart(Part part)
 	{
-		if (_handles.TryGetValue(part, out var handle))
+		if (_subscriptions.TryGetValue(part, out PartSubscription? sub))
 		{
-			part.PropertyChanged.Disconnect(handle.PropertyChangedHandler);
+			part.PropertyChanged.Disconnect(sub.PropertyChangedHandler);
+			_subscriptions.Remove(part);
 		}
 
 		part.CreateSeparateMesh();
 		RemoveFromBatch(part);
+
+		_dirty.Remove(part);
+		_dynamics.Remove(part);
 	}
 
 	public static bool IsPartEligible(Part part)
 	{
 		if (part.IsHidden || part.IsInTemporary) return false;
-		if (part.Anchored && !part.OverrideNoMultiMesh)
-		{
-			if (!IsInstanceValid(part.GDNode3D) || !part.GDNode3D.IsInsideTree()) return false;
-			if (part.IsDeleted) return false;
-			return true;
-		}
-		return false;
+		if (part.OverrideNoMultiMesh) return false;
+		if (!IsInstanceValid(part.GDNode3D) || !part.GDNode3D.IsInsideTree()) return false;
+		if (part.IsDeleted) return false;
+
+		return true;
+	}
+
+	private class PartSubscription
+	{
+		public Action<string> PropertyChangedHandler = null!;
 	}
 
 	private class PartHandle
 	{
-		public ChunkKey Key;
+		public BatchKey Key;
 		public int Index;
-		public System.Action PropertyChangedHandler = null!;
+
+		public Transform3D LastTransform;
+		public Color LastColor;
+		public Color LastCustomData;
 	}
 
-	private struct ChunkKey
+	private struct BatchKey
 	{
 		public Vector3I Coord;
 		public Part.PartMaterialEnum Material;
@@ -374,11 +506,12 @@ public partial class DatamodelBridge : Node3D
 		public bool IsTransparent;
 		public bool CastShadows;
 		public uint ScaleLevel;
+		public bool IsDynamic;
 	}
 
 	private class ChunkBatch
 	{
-		public ChunkKey Key;
+		public BatchKey Key;
 		public MultiMesh MultiMesh = null!;
 		public Rid Rid;
 		public List<Part> Parts = [];
