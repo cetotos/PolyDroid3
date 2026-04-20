@@ -665,24 +665,34 @@ public sealed partial class PolytorianModel : CharacterModel
 	public void LoadAppearance(int userID, bool loadTool = true)
 	{
 		ClearAppearance();
-		RpcId(1, nameof(NetLoadAppearance), userID, loadTool);
+		_ = InternalLoadAppearance(userID, loadTool);
 	}
 
 	[ScriptMethod]
 	public void ClearAppearance()
 	{
-		RpcId(1, nameof(NetClearAppearance));
+		HeadColor = Color.FromString(DefaultBodyColor, new Color());
+		TorsoColor = Color.FromString(DefaultBodyColor, new Color());
+		LeftArmColor = Color.FromString(DefaultBodyColor, new Color());
+		RightArmColor = Color.FromString(DefaultBodyColor, new Color());
+		LeftLegColor = Color.FromString(DefaultBodyColor, new Color());
+		RightLegColor = Color.FromString(DefaultBodyColor, new Color());
+		FaceImage = null;
+		_faceOverrided = false;
+		_bodyOverrided = false;
+
+		foreach (Instance item in GetChildren())
+		{
+			if (item is Accessory or Clothing)
+			{
+				item.Delete();
+			}
+		}
 	}
 
 	private static void MatApplyAlpha(StandardMaterial3D m, Color a)
 	{
 		m.Transparency = a.A == 1 ? BaseMaterial3D.TransparencyEnum.Disabled : BaseMaterial3D.TransparencyEnum.Alpha;
-	}
-
-	[NetRpc(AuthorityMode.Authority, CallLocal = true, TransferMode = TransferMode.Reliable)]
-	private async void NetLoadAppearance(int userID, bool loadTool)
-	{
-		_ = InternalLoadAppearance(userID, loadTool);
 	}
 
 	internal async Task<AvatarLoadResponse> InternalLoadAppearance(int userID, bool loadTool = false, bool loadToolNpc = false)
@@ -843,28 +853,6 @@ public sealed partial class PolytorianModel : CharacterModel
 	internal void QueueRenderCloth()
 	{
 		_updateClothDirty = true;
-	}
-
-	[NetRpc(AuthorityMode.Authority, TransferMode = TransferMode.Reliable, CallLocal = true)]
-	private void NetClearAppearance()
-	{
-		HeadColor = Color.FromString(DefaultBodyColor, new Color());
-		TorsoColor = Color.FromString(DefaultBodyColor, new Color());
-		LeftArmColor = Color.FromString(DefaultBodyColor, new Color());
-		RightArmColor = Color.FromString(DefaultBodyColor, new Color());
-		LeftLegColor = Color.FromString(DefaultBodyColor, new Color());
-		RightLegColor = Color.FromString(DefaultBodyColor, new Color());
-		FaceImage = null;
-		_faceOverrided = false;
-		_bodyOverrided = false;
-
-		foreach (Instance item in GetChildren())
-		{
-			if (item is Accessory or Clothing)
-			{
-				item.Delete();
-			}
-		}
 	}
 
 	public void SetAnimationOverrideTo(bool to)
