@@ -531,7 +531,7 @@ public sealed partial class CreatorService : Node, IScriptObject
 		args.AddRange("--rendering-method", RenderingDeviceSwitcher.GetCurrentDriverName());
 
 		// Ignore rendering method switcher flag, use the same one as creator's
-		args.AddRange("-rmswignore");
+		args.Add("-rmswignore");
 
 		LocalTestWorlds.Add(placeFilePath);
 

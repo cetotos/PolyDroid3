@@ -534,6 +534,9 @@ public sealed partial class ClientEntry : Node3D
 
 		args.AddRange("--rendering-method", RenderingDeviceSwitcher.GetCurrentDriverName());
 
+		// Ignore rendering method switcher flag, use the same one as creator's
+		args.Add("-rmswignore");
+
 		int procID = OS.CreateProcess(exePath, [.. args]);
 
 		_clientProcesses.Add(procID);
