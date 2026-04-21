@@ -491,6 +491,18 @@ public partial class Physical : Dynamic
 		NetTransformAuthority = peerId;
 		RpcId(peerId, nameof(NetGivenAuthority));
 		UpdateFreeze();
+
+		// if is RigidBody, give authority to child too
+		if (this is RigidBody)
+		{
+			foreach (var item in GetChildren())
+			{
+				if (item is Physical phy)
+				{
+					phy.SetNetworkAuthority(plr);
+				}
+			}
+		}
 	}
 
 	[NetRpc(AuthorityMode.Server, TransferMode = TransferMode.Reliable)]
