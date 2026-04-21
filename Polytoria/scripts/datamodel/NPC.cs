@@ -64,6 +64,26 @@ public partial class NPC : Physical
 	protected override float PositionSyncThreshold => 0.1f;
 	protected override float RotationSyncThreshold => 1f;
 
+	[Editable, ScriptProperty, SyncVar(Unreliable = true, AllowAuthorWrite = true)]
+	public override Vector3 Velocity
+	{
+		get
+		{
+			return CharacterVelocity.Flip();
+		}
+		set
+		{
+			if (this is Player plr)
+			{
+				plr.LastVelocity = value;
+			}
+
+			CharacterVelocity = value.Flip();
+
+			OnPropertyChanged();
+		}
+	}
+
 
 	[Editable, ScriptProperty, NoSync, Attributes.Obsolete("Apply them to Character"), CloneIgnore]
 	public Color HeadColor

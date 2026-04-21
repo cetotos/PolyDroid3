@@ -18,6 +18,7 @@ namespace Polytoria.Datamodel;
 [Abstract]
 public partial class Physical : Dynamic
 {
+	public const float MinMass = 0.01f;
 	private static readonly Dictionary<CollisionObject3D, Physical> _bodyToPhysical = [];
 	private static readonly Dictionary<Node, Physical> _proxyToPhysical = [];
 
@@ -30,6 +31,13 @@ public partial class Physical : Dynamic
 	private bool _canCollide = true;
 	private Vector3 _velocity = Vector3.Zero;
 	private Vector3 _angularVelocity = Vector3.Zero;
+	private bool _useGravity = true;
+	private float _mass;
+	private float _friction;
+	private float _drag;
+	private float _angularDrag;
+	private float _bounciness;
+
 	private CollisionObject3D? _registeredCollisionBody;
 
 
@@ -184,14 +192,6 @@ public partial class Physical : Dynamic
 			{
 				return npc.CharacterVelocity.Flip();
 			}
-			else if (this is Entity e)
-			{
-				return e.RigidBody.LinearVelocity.Flip();
-			}
-			else if (this is PhysicalModel phm)
-			{
-				return phm.RigidBody.LinearVelocity.Flip();
-			}
 
 			return _velocity;
 		}
@@ -210,14 +210,6 @@ public partial class Physical : Dynamic
 			{
 				npc.CharacterVelocity = setto;
 			}
-			else if (this is Entity e)
-			{
-				e.RigidBody.LinearVelocity = setto;
-			}
-			else if (this is PhysicalModel phm)
-			{
-				phm.RigidBody.LinearVelocity = setto;
-			}
 
 			OnPropertyChanged();
 		}
@@ -228,30 +220,108 @@ public partial class Physical : Dynamic
 	{
 		get
 		{
-			if (this is Entity e)
-			{
-				return e.RigidBody.AngularVelocity;
-			}
-			else if (this is PhysicalModel phm)
-			{
-				return phm.RigidBody.AngularVelocity;
-			}
-
 			return _angularVelocity;
 		}
 		set
 		{
 			_angularVelocity = value;
+			OnPropertyChanged();
+		}
+	}
 
-			if (this is Entity e)
+	[Editable, ScriptProperty, DefaultValue(true)]
+	public virtual bool UseGravity
+	{
+		get => _useGravity;
+		set
+		{
+			if (_useGravity == value)
 			{
-				e.RigidBody.AngularVelocity = _angularVelocity;
-			}
-			else if (this is PhysicalModel phm)
-			{
-				phm.RigidBody.AngularVelocity = _angularVelocity;
+				return;
 			}
 
+			_useGravity = value;
+
+			OnPropertyChanged();
+		}
+	}
+
+	[Editable, ScriptProperty, DefaultValue(1f)]
+	public virtual float Mass
+	{
+		get => _mass;
+		set
+		{
+			if (_mass == value)
+			{
+				return;
+			}
+
+			_mass = value;
+			OnPropertyChanged();
+		}
+	}
+
+	[Editable, ScriptProperty, DefaultValue(0.6f)]
+	public virtual float Friction
+	{
+		get => _friction;
+		set
+		{
+			if (_friction == value)
+			{
+				return;
+			}
+
+			_friction = value;
+			OnPropertyChanged();
+		}
+	}
+
+	[Editable, ScriptProperty, DefaultValue(0)]
+	public virtual float Drag
+	{
+		get => _drag;
+		set
+		{
+			if (_drag == value)
+			{
+				return;
+			}
+
+			_drag = value;
+			OnPropertyChanged();
+		}
+	}
+
+	[Editable, ScriptProperty, DefaultValue(0)]
+	public virtual float AngularDrag
+	{
+		get => _angularDrag;
+		set
+		{
+			if (_angularDrag == value)
+			{
+				return;
+			}
+
+			_angularDrag = value;
+			OnPropertyChanged();
+		}
+	}
+
+	[Editable, ScriptProperty, DefaultValue(0)]
+	public virtual float Bounciness
+	{
+		get => _bounciness;
+		set
+		{
+			if (_bounciness == value)
+			{
+				return;
+			}
+
+			_bounciness = value;
 			OnPropertyChanged();
 		}
 	}
@@ -1070,5 +1140,53 @@ public partial class Physical : Dynamic
 	public void MoveRotation(Vector3 rotation)
 	{
 		Rotation += rotation;
+	}
+
+	[ScriptMethod]
+	public void AddForce(Vector3 force, ForceModeEnum mode = ForceModeEnum.Force)
+	{
+		ApplyAddForce(force.Flip(), mode);
+	}
+
+	internal virtual void ApplyAddForce(Vector3 force, ForceModeEnum mode) { throw new NotImplementedException(ClassName + " does not support this force function"); }
+
+	[ScriptMethod]
+	public void AddTorque(Vector3 force, ForceModeEnum mode = ForceModeEnum.Force)
+	{
+		ApplyAddTorque(force.Flip(), mode);
+	}
+
+	internal virtual void ApplyAddTorque(Vector3 force, ForceModeEnum mode) { throw new NotImplementedException(ClassName + " does not support this force function"); }
+
+	[ScriptMethod]
+	public void AddForceAtPosition(Vector3 force, Vector3 position, ForceModeEnum mode = ForceModeEnum.Force)
+	{
+		ApplyAddForceAtPosition(force.Flip(), position.Flip(), mode);
+	}
+
+	internal virtual void ApplyAddForceAtPosition(Vector3 force, Vector3 position, ForceModeEnum mode) { throw new NotImplementedException(ClassName + " does not support this force function"); }
+
+	[ScriptMethod]
+	public void AddRelativeForce(Vector3 force, ForceModeEnum mode = ForceModeEnum.Force)
+	{
+		ApplyAddRelativeForce(force.Flip(), mode);
+	}
+
+	internal virtual void ApplyAddRelativeForce(Vector3 force, ForceModeEnum mode) { throw new NotImplementedException(ClassName + " does not support this force function"); }
+
+	[ScriptMethod]
+	public void AddRelativeTorque(Vector3 torque, ForceModeEnum mode = ForceModeEnum.Force)
+	{
+		ApplyAddRelativeTorque(torque.Flip(), mode);
+	}
+
+	internal virtual void ApplyAddRelativeTorque(Vector3 torque, ForceModeEnum mode) { throw new NotImplementedException(ClassName + " does not support this force function"); }
+
+	public enum ForceModeEnum
+	{
+		Force,
+		Acceleration,
+		Impulse,
+		VelocityChange
 	}
 }
