@@ -96,6 +96,11 @@
 		<Compile Remove="scripts/client/executor/**/*.cs" />
 	</ItemGroup>
 
+	<!-- Strip out Datamodel Tests -->
+	<ItemGroup Condition="'$(Configuration)' != 'Debug'">
+		<Compile Remove="scripts/datamodeltest/**/*.cs" />
+	</ItemGroup>
+
 	<!-- Remove android temporary .cs files -->
 	<ItemGroup>
 		<Compile Remove="android/build/**/*.cs" />

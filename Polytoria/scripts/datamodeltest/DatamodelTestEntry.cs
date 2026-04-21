@@ -1,5 +1,4 @@
 using Godot;
-#if DEBUG
 using Polytoria.Client;
 using Polytoria.Client.Settings;
 using Polytoria.Client.Settings.Appliers;
@@ -9,13 +8,11 @@ using Polytoria.Formats;
 using Polytoria.Shared;
 using System;
 using System.IO;
-#endif
 
 namespace Polytoria.DatamodelTest;
 
 public partial class DatamodelTestEntry : Node3D
 {
-#if DEBUG
 	public World Root = null!;
 	public NetworkService NetworkService { get; private set; } = null!;
 	public static bool IsTesting { get; private set; } = false;
@@ -81,5 +78,4 @@ public partial class DatamodelTestEntry : Node3D
 
 		networkService.CreateServer();
 	}
-#endif
 }
