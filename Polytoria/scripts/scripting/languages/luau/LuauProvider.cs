@@ -524,9 +524,15 @@ public sealed partial class LuauProvider : ScriptLanguageProvider
 					}
 					if (threadData.HasValue)
 					{
+						// called via built-in function, wait
 						Task<int> tsk = threadData.Value.Task;
 						narg = await tsk;
 						continue;
+					}
+					else
+					{
+						// called via coroutine.yield(), break here
+						break;
 					}
 				}
 				else
