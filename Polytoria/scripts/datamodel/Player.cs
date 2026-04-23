@@ -341,7 +341,7 @@ public sealed partial class Player : NPC
 
 		Root.Input.GodotInputEvent += OnInput;
 
-		if (Root.SessionType != World.SessionTypeEnum.Client && Root.Network.IsServer)
+		if (Root.SessionType == World.SessionTypeEnum.Client && Root.Network.IsServer)
 		{
 			Inventory inventory = Globals.LoadInstance<Inventory>(Root);
 			inventory.NameOverride = "Inventory";
