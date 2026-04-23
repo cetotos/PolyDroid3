@@ -373,10 +373,9 @@ public static class ProjectManager
 		CreatorService.Interface.LoadOverlay?.SetStatus("Saving world...");
 		PolyFormat.SaveWorldToFile(root, projectMainWorldPath);
 
-		tempViewport.RemoveChild(root.GDNode);
-		tempViewport.QueueFree();
-
 		root.ForceDelete();
+
+		tempViewport.QueueFree();
 
 		CreatorService.Interface.LoadOverlay?.Hide();
 		await CreatorService.Singleton.CreateNewSession(projectMetaPath);

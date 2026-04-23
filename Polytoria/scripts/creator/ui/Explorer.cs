@@ -218,9 +218,12 @@ public sealed partial class Explorer : TabContainer
 	{
 		if (_instanceToItem.TryGetValue(instance, out TreeItem? item))
 		{
-			// set text next frame
+			// lastly, set text
 			Callable.From(() =>
 			{
+				if (instance.IsDeleted) return;
+				if (!Node.IsInstanceValid(item)) return;
+
 				item.SetText(0, instance.Name);
 			}).CallDeferred();
 		}
