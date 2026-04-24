@@ -750,7 +750,7 @@ public sealed partial class PolytorianModel : CharacterModel
 				try
 				{
 					Accessory? accessory = await Root.Insert.AccessoryAsync(asset.ID);
-					if (myCount != _loadAppearanceCount) throw new OperationCanceledException("The avatar is cancelled");
+					if (myCount != _loadAppearanceCount) { accessory?.Delete(); throw new OperationCanceledException("The avatar is cancelled"); }
 					if (IsDeleted)
 					{
 						accessory?.Delete();
@@ -771,7 +771,7 @@ public sealed partial class PolytorianModel : CharacterModel
 					try
 					{
 						Tool? tool = await Root.Insert.ToolAsync(asset.ID);
-						if (myCount != _loadAppearanceCount) throw new OperationCanceledException("The avatar is cancelled");
+						if (myCount != _loadAppearanceCount) { tool?.Delete(); throw new OperationCanceledException("The avatar is cancelled"); }
 						if (IsDeleted)
 						{
 							tool?.Delete();
@@ -790,7 +790,7 @@ public sealed partial class PolytorianModel : CharacterModel
 					try
 					{
 						Tool? tool = await Root.Insert.ToolAsync(asset.ID);
-						if (myCount != _loadAppearanceCount) throw new OperationCanceledException("The avatar is cancelled");
+						if (myCount != _loadAppearanceCount) { tool?.Delete(); throw new OperationCanceledException("The avatar is cancelled"); }
 						if (IsDeleted)
 						{
 							tool?.Delete();
