@@ -18,13 +18,14 @@ public sealed partial class Text3D : Dynamic
 	private string _text = "";
 	private Label3D _label3D = null!;
 	private RichTextLabel _richLabel = null!;
-	private Label _testLabel = null!;
 	private Sprite3D _sprite3D = null!;
-	private SubViewport _subViewport = null!;
+	private SubViewport? _subViewport;
 	private BuiltInFontAsset.BuiltInTextFontPresetEnum _fontPreset = BuiltInFontAsset.BuiltInTextFontPresetEnum.Montserrat;
 	private FontAsset? _fontAsset;
 	private int _outlineWidth;
 	private Color _outlineColor;
+
+	private bool _prevRichTxtEnabled = false;
 
 	private float _fontSize = 16;
 	private bool _useRichText = false;
@@ -56,7 +57,6 @@ public sealed partial class Text3D : Dynamic
 			_fontSize = value;
 			int setto = (int)(value * FontSizeConversion);
 			_label3D.FontSize = setto;
-			_testLabel.AddThemeFontSizeOverride("font_size", setto);
 			_richLabel.AddThemeFontSizeOverride("normal_font_size", setto);
 			_richLabel.AddThemeFontSizeOverride("bold_font_size", setto);
 			_richLabel.AddThemeFontSizeOverride("bold_italics_font_size", setto);
@@ -109,7 +109,7 @@ public sealed partial class Text3D : Dynamic
 	[Editable, ScriptProperty]
 	public bool FaceCamera
 	{
-		get => _sprite3D.Billboard == BaseMaterial3D.BillboardModeEnum.Enabled;
+		get => _label3D.Billboard == BaseMaterial3D.BillboardModeEnum.Enabled;
 		set
 		{
 			_label3D.Billboard = value ? BaseMaterial3D.BillboardModeEnum.Enabled : BaseMaterial3D.BillboardModeEnum.Disabled;
@@ -221,8 +221,14 @@ public sealed partial class Text3D : Dynamic
 		{
 			_useRichText = value;
 
+			SetEnableRichTextViewport(value);
+			_sprite3D.Texture = _subViewport?.GetTexture();
+
 			_label3D.Visible = !value;
 			_sprite3D.Visible = value;
+
+			RecomputeSize();
+			OnPropertyChanged();
 		}
 	}
 
@@ -236,6 +242,7 @@ public sealed partial class Text3D : Dynamic
 
 			_label3D.Shaded = value;
 			_sprite3D.Shaded = value;
+			OnPropertyChanged();
 		}
 	}
 
@@ -249,7 +256,6 @@ public sealed partial class Text3D : Dynamic
 		_label3D.Font = f;
 		if (f != null)
 		{
-			_testLabel.AddThemeFontOverride("tfont", f);
 			_richLabel.AddThemeFontOverride("normal_font", f);
 			_richLabel.AddThemeFontOverride("mono_font", f);
 		}
@@ -258,23 +264,25 @@ public sealed partial class Text3D : Dynamic
 
 	private void RecomputeSize()
 	{
-		_testLabel.Text = _text;
-		Callable.From(() =>
+		if (!UseRichText) return;
+		PT.CallDeferred(() =>
 		{
 			if (!Node.IsInstanceValid(_richLabel)) return;
+			if (!Node.IsInstanceValid(_subViewport)) return;
+			if (!UseRichText) return;
 			Vector2 offset = Vector2.Zero;
-			Vector2I size = (Vector2I)_richLabel.Size;
+			Vector2I size = new(_richLabel.GetContentWidth(), _richLabel.GetContentHeight());
 			_subViewport.Size = size;
 			switch (_horizontalAlignment)
 			{
 				case TextHorizontalAlignmentEnum.Left:
-					offset.X = 0;
+					offset.X = size.X / 2;
 					break;
 				case TextHorizontalAlignmentEnum.Center:
-					offset.X = -(size.X / 2);
+					offset.X = 0;
 					break;
 				case TextHorizontalAlignmentEnum.Right:
-					offset.X = -size.X;
+					offset.X = -(size.X / 2);
 					break;
 			}
 			;
@@ -282,21 +290,19 @@ public sealed partial class Text3D : Dynamic
 			switch (_verticalAlignment)
 			{
 				case TextVerticalAlignmentEnum.Top:
-					offset.Y = 0;
+					offset.Y = size.Y / 2;
 					break;
 				case TextVerticalAlignmentEnum.Middle:
-					offset.Y = -(size.Y / 2);
+					offset.Y = 0;
 					break;
 				case TextVerticalAlignmentEnum.Bottom:
-					offset.Y = -size.Y;
+					offset.Y = -(size.Y / 2);
 					break;
 			}
 			;
 
 			_sprite3D.Offset = offset;
-
-			_subViewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Once;
-		}).CallDeferred();
+		});
 	}
 
 	public override Node CreateGDNode()
@@ -308,14 +314,10 @@ public sealed partial class Text3D : Dynamic
 	{
 		_label3D = GDNode.GetNode<Label3D>("Label3D");
 		_sprite3D = GDNode.GetNode<Sprite3D>("Sprite3D");
-		_subViewport = GDNode.GetNode<SubViewport>("SubViewport");
+		_richLabel = GDNode.GetNode<RichTextLabel>("RichTextLabel");
+		_richLabel.Visible = false;
 
-		_sprite3D.Texture = _subViewport.GetTexture();
-
-		_richLabel = _subViewport.GetNode<RichTextLabel>("RichTextLabel");
-		_testLabel = _subViewport.GetNode<Label>("Label");
-
-		_subViewport.RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled;
+		SetEnableRichTextViewport(false);
 
 		Text = "Text";
 		HorizontalAlignment = TextHorizontalAlignmentEnum.Center;
@@ -327,6 +329,27 @@ public sealed partial class Text3D : Dynamic
 		UseRichText = false;
 
 		base.Init();
+	}
+
+	private void SetEnableRichTextViewport(bool to)
+	{
+		if (_prevRichTxtEnabled == to) return;
+		_prevRichTxtEnabled = to;
+		if (to)
+		{
+			_subViewport = new SubViewport() { TransparentBg = true, Msaa2D = Viewport.Msaa.Disabled };
+			GDNode.AddChild(_subViewport);
+			_subViewport.RenderTargetUpdateMode = SubViewport.UpdateMode.WhenVisible;
+			_richLabel.Reparent(_subViewport);
+			_richLabel.Visible = true;
+		}
+		else
+		{
+			_richLabel.Reparent(GDNode);
+			_richLabel.Visible = false;
+			_subViewport?.QueueFree();
+			_subViewport = null;
+		}
 	}
 
 	internal override void OnNodeSizeChanged(Vector3 newSize)

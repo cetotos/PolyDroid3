@@ -29,6 +29,7 @@ public sealed partial class Particles : Dynamic
 	private Vector3 _gravity;
 	private Vector3 _velocityDirection;
 	private NumberRange _initialVelocity;
+	private NumberRange _startRotation;
 	private float _spread = 45;
 	private float _flatness = 0;
 	private NumberRange _scale;
@@ -174,6 +175,21 @@ public sealed partial class Particles : Dynamic
 
 			_particle.InitialVelocityMin = _initialVelocity.Min;
 			_particle.InitialVelocityMax = _initialVelocity.Max;
+
+			OnPropertyChanged();
+		}
+	}
+
+	[Editable, ScriptProperty]
+	public NumberRange StartRotation
+	{
+		get => _startRotation;
+		set
+		{
+			_startRotation = value;
+
+			_particle.AngleMin = _startRotation.Min;
+			_particle.AngleMax = _startRotation.Max;
 
 			OnPropertyChanged();
 		}
