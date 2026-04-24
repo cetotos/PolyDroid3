@@ -99,7 +99,6 @@ public partial class GUI3D : Dynamic
 		TransformChanged += UpdateCanvasSize;
 
 		_area.MouseEntered += OnAreaMouseEnter;
-		_area.MouseExited += OnAreaMouseExit;
 
 		base.Init();
 	}
@@ -119,7 +118,6 @@ public partial class GUI3D : Dynamic
 	public override void PreDelete()
 	{
 		_area.MouseEntered -= OnAreaMouseEnter;
-		_area.MouseExited -= OnAreaMouseExit;
 		TransformChanged -= UpdateCanvasSize;
 		base.PreDelete();
 	}
@@ -183,11 +181,6 @@ public partial class GUI3D : Dynamic
 	private void OnAreaMouseEnter()
 	{
 		_mouseInArea = true;
-	}
-
-	private void OnAreaMouseExit()
-	{
-		_mouseInArea = false;
 	}
 
 	protected void RecomputeChildTransforms()
