@@ -7,6 +7,9 @@ public static class RenderingDeviceSwitcher
 {
 	public static void Switch(RenderingDeviceEnum to)
 	{
+		// Mobile are locked to one renderer only, don't change
+		if (Globals.IsMobileBuild) return;
+
 		string renderingName = GetRenderingName(to);
 		string currentMethod = RenderingServer.GetCurrentRenderingMethod();
 		if (currentMethod == renderingName)
