@@ -22,4 +22,7 @@ Meanwhile, you can join the [Polytoria Contributors](https://discord.gg/HUgEE9Fh
 
 ## License
 
-Polytoria Client/Creator is licensed under Mozilla Public License Version 2.0. Please check [LICENSE](/LICENSE) for more info.
+Unless otherwise noted:
+- Source code is licensed under Mozilla Public License Version 2.0. Please check [LICENSE](/LICENSE) for more info.
+- Brand assets, logos, names, and trademarks are not licensed for reuse.
+- Third-party assets and native binaries are governed by their own licenses. Please refer to the respective repositories and documentation for more information.

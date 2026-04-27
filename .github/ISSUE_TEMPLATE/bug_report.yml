@@ -1,0 +1,164 @@
+name: Bug report
+description: Report reproducible broken behavior in Polytoria.
+title: "[Bug]: "
+labels:
+  - kind:bug
+  - status:needs-triage
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the template below with as much detail as possible to help us investigate and fix the issue. If you're not sure about something, just do your best to provide any relevant information.
+
+  - type: checkboxes
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if an issue already exists for the bug you encountered.
+      options:
+        - label: I have searched the existing issues
+          required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is broken?
+      placeholder: "Example: Creator crashes when importing a legacy world containing instances with no name"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: entry_mode
+    attributes:
+      label: Where did you encounter the bug?
+      description: Pick the mode where you experienced the bug. If you're not sure, pick the mode where you think it most likely happens.
+      multiple: true
+      options:
+        - Client
+        - Creator
+        - Server
+        - Unit tests / non-Godot environment
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: What platform(s) does this happen on?
+      description: Pick all platforms where this happens.
+      multiple: true
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Android
+        - iOS
+        - All platforms
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Polytoria version / commit
+      description: Which version of Polytoria are you using? If you built from source, please provide the commit hash or branch name.
+      placeholder: "2.0.5, commit abc1234, or main@..."
+    validations:
+      required: true
+
+  - type: input
+    id: godot_dotnet
+    attributes:
+      label: Godot and .NET versions
+      description: Which versions of Godot and .NET are you using? If not applicable, leave blank.
+      placeholder: "Godot 4.6.2, .NET SDK 10.0.x"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: build_config
+    attributes:
+      label: Build configuration
+      description: Pick "Official downloaded build" if you downloaded Polytoria normally from the website. If you built from source, which configuration did you build with?
+      options:
+        - Official downloaded build
+        - Debug
+        - ExportDebug
+        - ExportRelease
+        - Other
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: List the exact steps to reproduce the bug, including any specific actions, inputs, or conditions. The more detailed you are, the easier it will be for us to investigate and fix the issue.
+      placeholder: |
+        1. Open Creator
+        2. Import the attached legacy world
+        3. Click ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe what you expected to happen.
+      placeholder: "What should happen instead?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Describe what actually happened.
+      placeholder: "What happened? Include exact error text if available."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / console output
+      description: Paste relevant Godot output, Polytoria logs, stack traces, errors, or test output.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Screenshots, video, sample project, or world file
+      description: Attach media or a minimal sample to help reproduce the bug.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: Reproducibility
+      description: How often does this happen? If you can only reproduce it once, please try to reproduce it a few more times to confirm whether it's a consistent issue or a one-time occurrence.
+      options:
+        - Always
+        - Often
+        - Sometimes
+        - Rarely
+        - Could not reproduce again
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra_context
+    attributes:
+      label: Additional context
+      description: Anything else you want to add about the bug?
+    validations:
+      required: false

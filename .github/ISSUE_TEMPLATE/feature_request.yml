@@ -1,0 +1,85 @@
+name: Feature request
+description: Propose a new feature, improvement, or change to Polytoria.
+title: "[Feature]: "
+labels:
+  - kind:feature
+  - status:needs-triage
+
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Client
+        - Creator
+        - (Local) server / self-hosted testing
+        - Networking / replication
+        - Scripting API or runtimes
+        - Datamodel
+        - Build / export
+        - Publishing
+        - Documentation
+        - Developer tooling
+        - UI / UX
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem would this solve?
+      placeholder: "It is currently difficult to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the feature you want to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered any alternative solutions? If so, why would you prefer your proposed solution?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Who benefits?
+      description: Who would benefit from this feature? Pick all that apply.
+      multiple: true
+      options:
+        - Players
+        - Creators
+        - Contributors
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Are you interested in implementing this?
+      options:
+        - Yes, I would like to contribute this feature.
+        - No, I just want to suggest the idea.
+        - I'm not sure / maybe in the future.
+    validations:
+      required: true
+  
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional details
+      description: Any other information, such as implementation details, related issues, or links to examples.
+    validations:
+      required: false

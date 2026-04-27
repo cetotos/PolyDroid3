@@ -1,7 +1,0 @@
-contact_links:
-  - name: Report an issue with the Documentation
-    url: https://github.com/Polytoria/Docs-v2/issues
-    about: Please report issues with documentation on the Documentation repo.
-  - name: I need help!
-    url: https://discord.gg/vaWjjdWgMB
-    about: You can create a ticket in the Polytoria Support Discord server.

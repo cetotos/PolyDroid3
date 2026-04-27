@@ -1,0 +1,10 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Polytoria support
+    url: https://polytoria.com/
+    about: Account, moderation, billing, platform support, and support requests should not be filed as GitHub issues.
+
+  - name: Contributor Discord
+    url: https://discord.gg/HUgEE9FhSU
+    about: Use Discord for setup help, questions, and early contributor discussion.
