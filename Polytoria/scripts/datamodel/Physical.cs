@@ -252,7 +252,7 @@ public partial class Physical : Dynamic
 		}
 	}
 
-	public RigidBody? PhysicalRoot { get; private set; }
+	public Physical? PhysicalRoot { get; private set; }
 
 	internal bool OverrideCanCollide = false;
 	internal bool OverrideCanCollideTo = false;
@@ -285,13 +285,18 @@ public partial class Physical : Dynamic
 	public override void EnterTree()
 	{
 		Instance? current = Parent;
+
+		// Find physical until parent is not physical (top physical as root)
 		while (current != null)
 		{
 			Type ct = current.GetType();
 
-			if (current is RigidBody pr)
+			if (current is Physical pr)
 			{
 				PhysicalRoot = pr;
+			}
+			else
+			{
 				break;
 			}
 
@@ -589,7 +594,9 @@ public partial class Physical : Dynamic
 		if (!CollisionShapes.Contains(collisionShape)) return;
 		CollisionShapes.Remove(collisionShape);
 		_pendingAreaShapes.Remove(collisionShape);
-		_remoteLinkConfigs.Remove(collisionShape);
+
+		if (free)
+			_remoteLinkConfigs.Remove(collisionShape);
 
 		CleanupTrackedNodes(collisionShape, static state => state.TouchAreaNodes, true);
 		CleanupTrackedNodes(collisionShape, static state => state.CollisionSyncNodes, false);
