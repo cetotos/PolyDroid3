@@ -312,6 +312,7 @@ public partial class CreatorInterface : Control, IScriptObject
 				}
 				catch (Exception ex)
 				{
+					PT.PrintErr(ex);
 					PopupAlert(ex.Message, "Error exporting model");
 				}
 			}

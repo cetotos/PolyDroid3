@@ -37,6 +37,7 @@ public static class PublishManager
 		}
 		catch (Exception ex)
 		{
+			PT.PrintErr(ex);
 			CreatorService.Interface.PopupAlert(ex.Message);
 			loadOverlay?.Hide();
 		}
@@ -61,6 +62,7 @@ public static class PublishManager
 		}
 		catch (Exception ex)
 		{
+			PT.PrintErr(ex);
 			CreatorService.Interface.PopupAlert(ex.Message);
 			loadOverlay?.Hide();
 		}

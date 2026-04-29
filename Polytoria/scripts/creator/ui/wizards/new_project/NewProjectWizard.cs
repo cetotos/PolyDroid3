@@ -151,6 +151,7 @@ public partial class NewProjectWizard : Control
 			}
 			catch (Exception ex)
 			{
+				PT.PrintErr(ex);
 				CreatorService.Interface.PopupAlert(ex.Message, "Project create failed");
 			}
 
@@ -163,6 +164,7 @@ public partial class NewProjectWizard : Control
 				}
 				catch (Exception ex)
 				{
+					PT.PrintErr(ex);
 					CreatorService.Interface.PopupAlert(ex.Message, "Git initialization Failure");
 				}
 			}

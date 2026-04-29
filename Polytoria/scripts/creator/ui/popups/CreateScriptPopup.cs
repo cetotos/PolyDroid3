@@ -4,6 +4,7 @@
 
 using Godot;
 using Polytoria.Datamodel.Creator;
+using Polytoria.Shared;
 using System;
 
 namespace Polytoria.Creator.UI.Popups;
@@ -93,6 +94,7 @@ public sealed partial class CreateScriptPopup : PopupWindowBase
 				}
 				catch (Exception ex)
 				{
+					PT.PrintErr(ex);
 					CreatorService.Interface.PopupAlert(ex.Message);
 				}
 			});
