@@ -13,21 +13,22 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
-namespace Polytoria.Creator;
+namespace Polytoria.Creator.Debugger;
 
 public class DebugServer
 {
-	public static int Port { get; set; } = 24111;
-	public static bool ServerStarted { get; private set; } = false;
-	private static TcpListener _server = null!;
+	private static readonly TimeSpan WorldServerAllocTimeout = TimeSpan.FromSeconds(30);
+	public int Port { get; private set; } = 24111;
+	public bool ServerStarted { get; private set; } = false;
+	private TcpListener _server = null!;
 
-	private static readonly List<TcpClient> _tcpClients = [];
-	private static readonly Dictionary<TcpClient, ClientData> _clientToData = [];
-	private static readonly Dictionary<string, TcpClient> _idToClient = [];
+	private readonly List<TcpClient> _tcpClients = [];
+	private readonly Dictionary<TcpClient, ClientData> _clientToData = [];
+	private readonly Dictionary<string, TcpClient> _idToClient = [];
 
-	private static readonly Dictionary<string, TaskCompletionSource> _pendingServerInstance = [];
+	private readonly Dictionary<string, TaskCompletionSource> _pendingServerInstance = [];
 
-	public static void Start()
+	public void Start()
 	{
 		if (ServerStarted) return;
 		IPAddress localAddr = IPAddress.Parse("127.0.0.1");
@@ -39,17 +40,17 @@ public class DebugServer
 		PT.Print($"-- Debug server started at {localAddr}:{Port} --");
 	}
 
-	private static async Task ServerMainLoop()
+	private async Task ServerMainLoop()
 	{
 		while (ServerStarted)
 		{
 			TcpClient client = await _server.AcceptTcpClientAsync();
 			PT.Print("Debug client connected");
-			_ = Task.Run(() => HandleClient(client));
+			_ = HandleClient(client);
 		}
 	}
 
-	private static async Task HandleClient(TcpClient client)
+	private async Task HandleClient(TcpClient client)
 	{
 		_tcpClients.Add(client);
 		try
@@ -84,7 +85,11 @@ public class DebugServer
 		{
 			client.Close();
 			PT.Print("Debug client disconnected");
-			_clientToData.Remove(client);
+			if (_clientToData.Remove(client, out var data))
+			{
+				// Cleanup local test process
+				CreatorService.Singleton.LocalTestProcesses.Remove(data.ProcessID);
+			}
 			_tcpClients.Remove(client);
 			foreach ((string id, TcpClient c) in _idToClient)
 			{
@@ -97,23 +102,19 @@ public class DebugServer
 		}
 	}
 
-	private static async Task OnMessageRecv(TcpClient from, IDebugMessage msg)
+	private async Task OnMessageRecv(TcpClient from, IDebugMessage msg)
 	{
 		if (msg is MessageClientData data)
 		{
-			if (data.DebugID == null) return;
-			PT.Print("has reported client data! ", data.DebugID);
-
 			_clientToData.Add(from, new()
 			{
-				DebugID = data.DebugID
+				DebugID = data.DebugID,
+				ProcessID = data.ProcessID,
 			});
-		}
-		else if (msg is MessageReportProcess procRe)
-		{
-			if (procRe.ProcessID != 0)
+
+			if (data.ProcessID != 0)
 			{
-				CreatorService.Singleton.LocalTestProcesses.Add(procRe.ProcessID);
+				CreatorService.Singleton.LocalTestProcesses.Add(data.ProcessID);
 			}
 		}
 		else if (msg is MessageLogDispatch log)
@@ -126,44 +127,40 @@ public class DebugServer
 			{
 				CreatorSession session = CreatorService.LocalTestIDToSession[cdata.DebugID];
 				PT.Print("Server start request: ", req.WorldPath);
-				PT.Print(session);
-				string placePath = req.WorldPath;
-				string originPlacePath = placePath;
-				if (!placePath.EndsWith(".poly")) placePath += ".poly";
+				string worldPath = req.WorldPath;
+				string originPlacePath = worldPath;
+
+				// Fix .poly extension
+				if (!worldPath.EndsWith(".poly")) worldPath += ".poly";
 
 				// call on main thread
-				Callable.From(() =>
+				PT.CallOnMainThread(async () =>
 				{
-					// worrrkkkkarounnddd
-					async void a()
+					try
 					{
-						try
-						{
-							int port = GD.RandRange(20000, 30000);
+						int port = GD.RandRange(20000, 30000);
 
-							TaskCompletionSource tcs = new();
+						TaskCompletionSource tcs = new();
 
-							_pendingServerInstance.Add(cdata.DebugID, tcs);
+						_pendingServerInstance.Add(cdata.DebugID, tcs);
 
-							await CreatorService.Singleton.StartLocalTestOnEntry(session.ProjectFolderPath, placePath, cdata.DebugID, port, true);
+						await CreatorService.Singleton.StartLocalTestOnEntry(session.ProjectFolderPath, worldPath, cdata.DebugID, port, true);
 
-							PT.Print("awaiting server start..");
-							await tcs.Task;
-							PT.Print("server started!");
+						PT.Print($"Awaiting server start.. ({worldPath})");
+						await tcs.Task.WaitAsync(WorldServerAllocTimeout);
+						PT.Print("New server started!");
 
-							SendMessage(from, new MessageNewServerResponse() { WorldPath = originPlacePath, Address = "127.0.0.1", Port = port, DebugID = cdata.DebugID });
-						}
-						catch (Exception ex)
-						{
-							OS.Alert(ex.Message);
-						}
+						SendMessage(from, new MessageNewServerResponse() { WorldPath = originPlacePath, Address = "127.0.0.1", Port = port, DebugID = cdata.DebugID });
 					}
-					a();
-				}).CallDeferred();
+					catch (Exception ex)
+					{
+						OS.Alert(ex.Message);
+					}
+				});
 			}
 			else
 			{
-				PT.Print("Got no client data");
+				PT.PrintErr("World join failure: no client data");
 			}
 		}
 		else if (msg is MessageServerReady serverReady)
@@ -172,20 +169,15 @@ public class DebugServer
 			{
 				if (_pendingServerInstance.TryGetValue(cdata.DebugID, out TaskCompletionSource? tcs))
 				{
-					PT.Print("Resolve server start");
+					PT.Print("Server start resolved");
 					tcs.SetResult();
-				}
-				else
-				{
-					PT.Print(cdata.DebugID, " not found");
 				}
 			}
 		}
 	}
 
-	public static async void BroadcastMessage(IDebugMessage msg)
+	public async void BroadcastMessage(IDebugMessage msg)
 	{
-		PT.Print("Server Broadcast message ", msg);
 		byte[] data = SerializeUtils.Serialize(msg);
 		foreach (TcpClient client in _tcpClients)
 		{
@@ -194,15 +186,14 @@ public class DebugServer
 		}
 	}
 
-	public static async void SendMessage(TcpClient client, IDebugMessage msg)
+	private static async void SendMessage(TcpClient client, IDebugMessage msg)
 	{
-		PT.Print("Server Sending message ", msg);
 		byte[] data = SerializeUtils.Serialize(msg);
 		NetworkStream stream = client.GetStream();
 		await stream.WriteAsync(data);
 	}
 
-	public static void SendTerminateProgram()
+	public void SendTerminateProgram()
 	{
 		BroadcastMessage(new MessageShutdown());
 	}
@@ -210,5 +201,6 @@ public class DebugServer
 	private struct ClientData
 	{
 		public string DebugID;
+		public int ProcessID;
 	}
 }

@@ -35,8 +35,11 @@ public sealed partial class WorldsService : Instance
 		if (!Root.Network.IsServer) throw new InvalidOperationException(WorldAPINonServerMsg);
 		if (Root.IsLocalTest)
 		{
+			if (Root.Entry == null) throw new Exception("No client entry");
+			if (Root.Entry.DebugAgent == null) throw new Exception("Debugger not attached, could not start new server");
+
 			string newID = Guid.NewGuid().ToString();
-			MessageNewServerResponse newServer = await DebugClient.CreateServerInstance(data.PlacePath);
+			MessageNewServerResponse newServer = await Root.Entry.DebugAgent.CreateServerInstance(data.PlacePath);
 			_testServers.Add(newID, newServer);
 			return newID;
 		}
@@ -51,7 +54,10 @@ public sealed partial class WorldsService : Instance
 		plr.teleporting = true;
 		if (Root.IsLocalTest)
 		{
-			MessageNewServerResponse newServer = await DebugClient.CreateServerInstance(to);
+			if (Root.Entry == null) throw new Exception("No client entry");
+			if (Root.Entry.DebugAgent == null) throw new Exception("Debugger not attached, could not start new server");
+
+			MessageNewServerResponse newServer = await Root.Entry.DebugAgent.CreateServerInstance(to);
 			_ = TeleportPlayerToTest(plr, newServer);
 		}
 	}
@@ -63,7 +69,10 @@ public sealed partial class WorldsService : Instance
 
 		if (Root.IsLocalTest)
 		{
-			MessageNewServerResponse newServer = await DebugClient.CreateServerInstance(to);
+			if (Root.Entry == null) throw new Exception("No client entry");
+			if (Root.Entry.DebugAgent == null) throw new Exception("Debugger not attached, could not start new server");
+
+			MessageNewServerResponse newServer = await Root.Entry.DebugAgent.CreateServerInstance(to);
 			foreach (Player plr in plrs)
 			{
 				if (plr.teleporting) continue;

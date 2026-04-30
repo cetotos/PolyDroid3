@@ -7,6 +7,7 @@
 #endif
 
 using Godot;
+using Polytoria.Client.Debugger;
 using Polytoria.Client.Settings;
 using Polytoria.Client.Settings.Appliers;
 using Polytoria.Client.WebAPI;
@@ -31,6 +32,7 @@ public sealed partial class ClientEntry : Node3D
 	public event Action? LeaveGameRequested;
 	public event Action? TargetServerReady;
 	public NetworkService NetworkService { get; private set; } = null!;
+	public DatamodelBridge DatamodelBridge { get; private set; } = null!;
 
 	public World Root = null!;
 	public bool IsFocused = false;
@@ -51,6 +53,8 @@ public sealed partial class ClientEntry : Node3D
 
 	private string? _debugAddress;
 	private int? _debugPort;
+
+	internal DebugAgent? DebugAgent { get; private set; }
 
 	public ClientEntry()
 	{
@@ -156,8 +160,9 @@ public sealed partial class ClientEntry : Node3D
 		}
 #endif
 
-		if (debugAddress != null && !DebugClient.ClientStarted)
+		if (debugAddress != null)
 		{
+			DebugAgent = new();
 			sw.Restart();
 			PT.Print($"Connecting to debug server {debugAddress}");
 			string[] segments = debugAddress.Split(':');
@@ -165,7 +170,7 @@ public sealed partial class ClientEntry : Node3D
 			{
 				_debugAddress = segments[0];
 				_debugPort = int.Parse(segments[1]);
-				await DebugClient.Start(_debugAddress, _debugPort.Value, debugID);
+				await DebugAgent.Start(_debugAddress, _debugPort.Value, debugID);
 			}
 			catch (Exception ex)
 			{
@@ -196,11 +201,11 @@ public sealed partial class ClientEntry : Node3D
 		settings.AddChild(new AudioSettingsApplier { Name = "AudioSettingsApplier" }, true, InternalMode.Front);
 		settings.AddChild(new GraphicsSettingsApplier { Name = "GraphicsSettingsApplier" }, true, InternalMode.Front);
 
-		DatamodelBridge bridge = new()
+		DatamodelBridge = new()
 		{
 			Name = "DatamodelBridge"
 		};
-		AddChild(bridge, true);
+		AddChild(DatamodelBridge, true);
 
 		NetworkService networkService = new()
 		{
@@ -219,7 +224,7 @@ public sealed partial class ClientEntry : Node3D
 		Root.World3D = GetWorld3D();
 		Root.InitEntry();
 
-		bridge.Attach(Root);
+		DatamodelBridge.Attach(Root);
 		World.Current = Root;
 
 		PT.Print("World current setup!");
@@ -371,11 +376,8 @@ public sealed partial class ClientEntry : Node3D
 					// Start local server
 					PT.Print("Starting local server on " + port);
 					networkService.CreateServer(port);
-
-					if (DebugClient.ClientStarted)
-					{
-						await DebugClient.SendServerReady();
-					}
+					if (DebugAgent != null)
+						await DebugAgent.SendServerReady();
 				}
 				catch (Exception ex)
 				{
@@ -542,6 +544,13 @@ public sealed partial class ClientEntry : Node3D
 		_clientProcesses.Add(procID);
 
 		PT.Print($"Started new client process with ID {procID}");
+	}
+
+	public override void _ExitTree()
+	{
+		Root.ForceDelete();
+		DatamodelBridge.Free();
+		base._ExitTree();
 	}
 
 	public struct ClientEntryData

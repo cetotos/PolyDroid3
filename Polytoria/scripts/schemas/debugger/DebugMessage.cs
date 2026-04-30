@@ -16,7 +16,6 @@ namespace Polytoria.Schemas.Debugger;
 [MemoryPackUnion(5, typeof(MessageServerReady))]
 [MemoryPackUnion(6, typeof(MessageLogDispatch))]
 [MemoryPackUnion(7, typeof(MessageObjPropChange))]
-[MemoryPackUnion(8, typeof(MessageReportProcess))]
 public partial interface IDebugMessage
 {
 }
@@ -25,11 +24,6 @@ public partial interface IDebugMessage
 public partial class MessageClientData : IDebugMessage
 {
 	public string DebugID = "";
-}
-
-[MemoryPackable]
-public partial class MessageReportProcess : IDebugMessage
-{
 	public int ProcessID = 0;
 }
 

@@ -63,6 +63,13 @@ public partial class DatamodelBridge : Node3D
 			Root.InstanceEnteredTree -= OnInstanceAdded;
 			Root.InstanceExitingTree -= OnInstanceRemoving;
 			Root.Loaded.Disconnect(OnGameReady);
+
+			// Cleanup parts
+			foreach (var item in _handles.Keys)
+			{
+				RemovePart(item);
+			}
+
 			Root.Bridge = null!;
 		}
 		base._ExitTree();

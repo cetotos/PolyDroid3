@@ -15,18 +15,18 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Threading.Tasks;
 
-namespace Polytoria.Client;
+namespace Polytoria.Client.Debugger;
 
-public static class DebugClient
+public class DebugAgent
 {
-	public static bool ClientStarted { get; private set; } = false;
-	private static TcpClient _client = null!;
-	private static NetworkStream _stream = null!;
-	private static readonly List<KeyValuePair<string, TaskCompletionSource<MessageNewServerResponse>>> _pendingServerInstance = [];
+	public bool ClientStarted { get; private set; } = false;
+	private TcpClient _client = null!;
+	private NetworkStream _stream = null!;
+	private readonly List<KeyValuePair<string, TaskCompletionSource<MessageNewServerResponse>>> _pendingServerInstance = [];
 
-	private static string _address = "";
+	private string _address = "";
 
-	public static async Task Start(string addresss, int port, string? debugID = null)
+	public async Task Start(string addresss, int port, string? debugID = null)
 	{
 		if (ClientStarted) return;
 
@@ -37,21 +37,28 @@ public static class DebugClient
 
 		_stream = _client.GetStream();
 
-		// Start receiving messages in background
-		_ = Task.Run(ReceiveMessages);
+		_ = ReceiveMessages();
+
+		ClientStarted = true;
+
+		// Init messages
+		int procId = Globals.IsMobileBuild ? 0 : OS.GetProcessId();
 
 		if (debugID != null)
 		{
-			await SendMessage(new MessageClientData() { DebugID = debugID });
+			PT.Print("Reporting debug ID: ", debugID);
+			await SendMessage(new MessageClientData() { DebugID = debugID, ProcessID = procId });
 		}
-		await SendMessage(new MessageReportProcess() { ProcessID = Globals.IsMobileBuild ? 0 : OS.GetProcessId() });
-
-		ClientStarted = true;
+		else
+		{
+			PT.Print("No debug ID attached");
+			await SendMessage(new MessageClientData() { ProcessID = procId });
+		}
 
 		PT.PrintV($"-- Connected to debug server --");
 	}
 
-	private static async Task ReceiveMessages()
+	private async Task ReceiveMessages()
 	{
 		while (true)
 		{
@@ -82,7 +89,7 @@ public static class DebugClient
 		}
 	}
 
-	private static void OnMessageRecv(IDebugMessage msg)
+	private void OnMessageRecv(IDebugMessage msg)
 	{
 		if (msg is MessageShutdown)
 		{
@@ -132,16 +139,16 @@ public static class DebugClient
 					object? val = NetworkPropSync.DeserializePropValue(pc.PropertyValue, prop.PropertyType);
 
 					// Call in main thread
-					Callable.From(() =>
+					PT.CallOnMainThread(() =>
 					{
 						prop.SetValue(obj, val);
-					}).CallDeferred();
+					});
 				}
 			}
 		}
 	}
 
-	public static async Task SendMessage(IDebugMessage msg)
+	public async Task SendMessage(IDebugMessage msg)
 	{
 		if (!ClientStarted) return;
 		byte[] data = SerializeUtils.Serialize(msg);
@@ -155,12 +162,12 @@ public static class DebugClient
 		}
 	}
 
-	public static async Task SendServerReady()
+	public async Task SendServerReady()
 	{
 		await SendMessage(new MessageServerReady());
 	}
 
-	public static async Task SendLogDispatch(LogDispatcher.LogData data)
+	public async Task SendLogDispatch(LogDispatcher.LogData data)
 	{
 		await SendMessage(new MessageLogDispatch()
 		{
@@ -170,7 +177,7 @@ public static class DebugClient
 		});
 	}
 
-	public static async Task<MessageNewServerResponse> CreateServerInstance(string toPath)
+	public async Task<MessageNewServerResponse> CreateServerInstance(string toPath)
 	{
 		TaskCompletionSource<MessageNewServerResponse> restsk = new();
 		_pendingServerInstance.Add(new(toPath, restsk));

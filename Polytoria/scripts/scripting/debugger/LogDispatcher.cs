@@ -4,7 +4,6 @@
 
 using MemoryPack;
 using Polytoria.Attributes;
-using Polytoria.Client;
 #if CREATOR
 using Polytoria.Creator.UI;
 #endif
@@ -101,9 +100,9 @@ public partial class LogDispatcher : NetworkedObject
 			DebugConsole.Singleton?.NewLog(data);
 #endif
 		});
-		if (DebugClient.ClientStarted)
+		if (Root.Entry?.DebugAgent != null)
 		{
-			await DebugClient.SendLogDispatch(data);
+			await Root.Entry.DebugAgent.SendLogDispatch(data);
 		}
 	}
 

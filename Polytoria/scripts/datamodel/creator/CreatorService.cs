@@ -5,6 +5,7 @@
 using Godot;
 using Polytoria.Attributes;
 using Polytoria.Creator;
+using Polytoria.Creator.Debugger;
 using Polytoria.Creator.Managers;
 using Polytoria.Creator.UI;
 using Polytoria.Creator.UI.Splashes;
@@ -26,6 +27,8 @@ public sealed partial class CreatorService : Node, IScriptObject
 {
 	public const string PolytoriaFolderName = "Polytoria/";
 
+	private long _localTestIDCounter = 0;
+
 	[ScriptProperty] public static CreatorInterface Interface { get; private set; } = null!;
 	public static CreatorClipboard Clipboard { get; private set; } = null!;
 
@@ -43,6 +46,8 @@ public sealed partial class CreatorService : Node, IScriptObject
 	public static List<CreatorSession> Sessions { get; private set; } = [];
 	public static Dictionary<string, CreatorSession> LocalTestIDToSession { get; private set; } = [];
 	public static Dictionary<CreatorSession, string> SessionToLocalTestID { get; private set; } = [];
+
+	internal DebugServer DebugServer { get; private set; } = null!;
 
 	public CreatorService()
 	{
@@ -68,6 +73,7 @@ public sealed partial class CreatorService : Node, IScriptObject
 	{
 		OS.LowProcessorUsageMode = true;
 		Globals.BeforeQuit += OnBeforeQuit;
+		DebugServer = new();
 		DebugServer.Start();
 
 		DisplayServer.WindowSetDropFilesCallback(Callable.From<string[]>(OnFilesDropped));
@@ -492,7 +498,7 @@ public sealed partial class CreatorService : Node, IScriptObject
 		// Save current project
 		SaveCurrentFile();
 
-		string debugID = Guid.NewGuid().ToString();
+		string debugID = _localTestIDCounter++.ToString();
 
 		LocalTestIDToSession.Add(debugID, session);
 		SessionToLocalTestID.Add(session, debugID);
