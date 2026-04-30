@@ -300,7 +300,7 @@ public sealed partial class Globals : Node
 #endif
 
 #if CREATOR
-public static Texture2D LoadIcon(string className)
+	public static Texture2D LoadIcon(string className)
 	{
 		return LoadCachedTexture(_iconsCache, className, DatamodelIconsPath, "Unknown");
 	}
