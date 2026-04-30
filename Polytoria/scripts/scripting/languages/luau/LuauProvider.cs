@@ -751,7 +751,7 @@ public sealed partial class LuauProvider : ScriptLanguageProvider
 		if (capturedException != null)
 		{
 			state.Unref(coRef);
-			return co.Error(co.ToString(-1) ?? capturedException.Message);
+			return state.Error(co.ToString(-1) ?? capturedException.Message);
 		}
 
 		TaskCompletionSource<int> tcs = new();
