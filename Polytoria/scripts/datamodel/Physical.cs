@@ -563,7 +563,7 @@ public partial class Physical : Dynamic
 	/// Add collision shape, this is used for mirroring collision shapes to other body types
 	/// </summary>
 	/// <param name="collisionShape"></param>
-	protected void AddCollisionShape(CollisionShape3D collisionShape)
+	internal void AddCollisionShape(CollisionShape3D collisionShape)
 	{
 		if (CollisionShapes.Contains(collisionShape)) return;
 		CollisionShapes.Add(collisionShape);
@@ -578,7 +578,7 @@ public partial class Physical : Dynamic
 	/// This function must be called if collision shape has been updated
 	/// </summary>
 	/// <param name="collisionShape">Target collision shape</param>
-	protected void PostCollisionShapeUpdate(CollisionShape3D collisionShape)
+	internal void PostCollisionShapeUpdate(CollisionShape3D collisionShape)
 	{
 		RemoveCollisionShape(collisionShape, false);
 		AddCollisionShape(collisionShape);
@@ -589,7 +589,7 @@ public partial class Physical : Dynamic
 	/// </summary>
 	/// <param name="collisionShape">Target collision shape</param>
 	/// <param name="free">Free the shape now?</param>
-	protected void RemoveCollisionShape(CollisionShape3D collisionShape, bool free = true)
+	internal void RemoveCollisionShape(CollisionShape3D collisionShape, bool free = true)
 	{
 		if (!CollisionShapes.Contains(collisionShape)) return;
 		CollisionShapes.Remove(collisionShape);
@@ -637,7 +637,7 @@ public partial class Physical : Dynamic
 		}
 	}
 
-	protected void ClearCollisionShapes()
+	internal void ClearCollisionShapes()
 	{
 		foreach (CollisionShape3D collision in CollisionShapes.ToArray())
 		{
@@ -660,13 +660,13 @@ public partial class Physical : Dynamic
 		CreateAreaShapeInternal(origin);
 	}
 
-	protected static void SetRemoteLinkTarget(CollisionShape3D collisionShape, Node? target)
+	internal static void SetRemoteLinkTarget(CollisionShape3D collisionShape, Node? target)
 	{
 		RemoteLinkConfig config = _remoteLinkConfigs.GetOrCreateValue(collisionShape);
 		config.Target = target != null && Node.IsInstanceValid(target) ? target : null;
 	}
 
-	protected static void SetRemoteLinkOffset(CollisionShape3D collisionShape, Vector3 offset)
+	internal static void SetRemoteLinkOffset(CollisionShape3D collisionShape, Vector3 offset)
 	{
 		RemoteLinkConfig config = _remoteLinkConfigs.GetOrCreateValue(collisionShape);
 		config.Offset = offset;

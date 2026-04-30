@@ -414,7 +414,7 @@ public partial class NPC : Physical
 
 	public override Node CreateGDNode()
 	{
-		return Globals.LoadNetworkedObjectScene(ClassName)!;
+		return new CharacterBody3D() { FloorMaxAngle = 80f };
 	}
 
 	public override void InitGDNode()
@@ -444,13 +444,6 @@ public partial class NPC : Physical
 
 		ChildAdded.Connect(OnChildAdded);
 		ChildRemoved.Connect(OnChildRemoved);
-
-		// Add remote offset to the default collision
-		var collision = GDNode3D.GetNode<CollisionShape3D>("Collision");
-		SetRemoteLinkOffset(collision, collision.Position);
-
-		AddCollisionShape(collision);
-		UpdateCollision();
 
 		RecalculateNametagOffset();
 

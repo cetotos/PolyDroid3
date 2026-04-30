@@ -23,6 +23,11 @@ public sealed partial class PolytorianModel : CharacterModel
 	private const double NetLookBlendUpdateInterval = 0.1;
 	private double _lastNetUpdateTime = 0.0;
 
+	private static readonly BoxShape3D _collisionBox = new() { Size = new(2f, 5.8f, 1f) };
+	internal Node3D? CollisionPivot;
+	internal CollisionShape3D? CollisionShape;
+	private Physical? _oldPhyParent;
+
 	internal MeshInstance3D HeadMeshInstance = null!;
 	internal MeshInstance3D TorsoMeshInstance = null!;
 	internal MeshInstance3D LeftArmMeshInstance = null!;
@@ -299,6 +304,49 @@ public sealed partial class PolytorianModel : CharacterModel
 		return Globals.LoadNetworkedObjectScene(ClassName)!;
 	}
 
+	public override void EnterTree()
+	{
+		if (Parent is Physical phy)
+		{
+			_oldPhyParent = phy;
+
+			// Configure default collision shape for PolytorianModel
+			CollisionPivot = new()
+			{
+				Scale = NodeSize
+			};
+			CollisionShape = new()
+			{
+				Shape = _collisionBox
+			};
+			Physical.SetRemoteLinkOffset(CollisionShape, new(0, 3f - 0.1f, 0));
+			Physical.SetRemoteLinkTarget(CollisionShape, CollisionPivot);
+			GDNode.AddChild(CollisionPivot);
+			CollisionPivot.Position = new(0, -3f, 0);
+
+			phy.GDNode.AddChild(CollisionShape);
+			phy.AddCollisionShape(CollisionShape);
+			phy.UpdateCollision();
+		}
+		base.EnterTree();
+	}
+
+	public override void ExitTree()
+	{
+		if (_oldPhyParent != null)
+		{
+			_oldPhyParent.RemoveCollisionShape(CollisionShape!);
+			if (Node.IsInstanceValid(CollisionPivot))
+			{
+				CollisionPivot.QueueFree();
+			}
+
+			CollisionPivot = null;
+			CollisionShape = null;
+		}
+		base.ExitTree();
+	}
+
 	public override async void Ready()
 	{
 		if (Root == null)
@@ -340,6 +388,7 @@ public sealed partial class PolytorianModel : CharacterModel
 	internal override void OnNodeSizeChanged(Vector3 newSize)
 	{
 		Pivot?.Scale = newSize;
+		CollisionPivot?.Scale = newSize;
 		base.OnNodeSizeChanged(newSize);
 	}
 
