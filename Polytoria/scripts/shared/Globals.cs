@@ -67,6 +67,9 @@ public sealed partial class Globals : Node
 	private static Dictionary<(Part.PartMaterialEnum, bool), Material> _materialCache = [];
 
 	private static bool _isExiting = false;
+
+	public static bool IsExiting => _isExiting;
+
 	public const string BuiltInFontLocation = "res://assets/fonts/built-in";
 	public const string BuiltInAudioLocation = "res://assets/audio/built-in";
 	public const float MobileScale = 2.5f;

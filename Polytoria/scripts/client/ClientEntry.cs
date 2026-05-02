@@ -548,8 +548,11 @@ public sealed partial class ClientEntry : Node3D
 
 	public override void _ExitTree()
 	{
-		Root.ForceDelete();
-		DatamodelBridge.Free();
+		if (!Globals.IsExiting)
+		{
+			Root.ForceDelete();
+			DatamodelBridge.Free();
+		}
 		base._ExitTree();
 	}
 
