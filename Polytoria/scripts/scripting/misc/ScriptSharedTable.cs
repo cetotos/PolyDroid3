@@ -9,7 +9,7 @@ namespace Polytoria.Scripting;
 
 public partial class ScriptSharedTable : IScriptObject
 {
-	internal Dictionary<string, object> SharedDict = [];
+	internal Dictionary<object, object> SharedDict = [];
 
 	[ScriptMethod]
 	public void Clear()
@@ -26,9 +26,9 @@ public partial class ScriptSharedTable : IScriptObject
 	[ScriptMethod]
 	public void ClearPrefix(string prefix)
 	{
-		foreach ((string key, _) in SharedDict)
+		foreach ((object key, _) in SharedDict)
 		{
-			if (key.StartsWith(prefix))
+			if (key is string strk && strk.StartsWith(prefix))
 			{
 				SharedDict.Remove(key);
 			}
@@ -38,9 +38,9 @@ public partial class ScriptSharedTable : IScriptObject
 	[ScriptMethod]
 	public void ClearSuffix(string suffix)
 	{
-		foreach ((string key, _) in SharedDict)
+		foreach ((object key, _) in SharedDict)
 		{
-			if (key.EndsWith(suffix))
+			if (key is string strk && strk.EndsWith(suffix))
 			{
 				SharedDict.Remove(key);
 			}
@@ -48,7 +48,7 @@ public partial class ScriptSharedTable : IScriptObject
 	}
 
 	[ScriptMetamethod(ScriptObjectMetamethod.Index)]
-	public object? Index(string index)
+	public object? Index(object index)
 	{
 		if (SharedDict.TryGetValue(index, out object? value))
 		{
@@ -58,7 +58,7 @@ public partial class ScriptSharedTable : IScriptObject
 	}
 
 	[ScriptMetamethod(ScriptObjectMetamethod.NewIndex)]
-	public void NewIndex(string index, object val)
+	public void NewIndex(object index, object val)
 	{
 		SharedDict[index] = val;
 		if (val == null)
@@ -68,9 +68,9 @@ public partial class ScriptSharedTable : IScriptObject
 	}
 
 	[ScriptMetamethod(ScriptObjectMetamethod.Iter)]
-	public static IEnumerable<(string, object)> Iter(ScriptSharedTable sTable)
+	public static IEnumerable<(object, object)> Iter(ScriptSharedTable sTable)
 	{
-		foreach ((string key, object value) in sTable.SharedDict)
+		foreach ((var key, var value) in sTable.SharedDict)
 		{
 			yield return (key, value);
 		}
