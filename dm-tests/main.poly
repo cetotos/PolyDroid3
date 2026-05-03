@@ -1,5 +1,5 @@
 {
-  "Version": "2.0.0-beta86\u002Bdev",
+  "Version": "2.0.0-beta87\u002Bdev",
   "FileType": 0,
   "Objects": [
     {
@@ -983,6 +983,7 @@
             "UseBubbleChat": true,
             "AutoLoadAppearance": true,
             "LoadAppearanceTools": true,
+            "MovementMode": 0,
             "Tags": []
           },
           "Children": [

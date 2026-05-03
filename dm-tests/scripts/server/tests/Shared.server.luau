@@ -13,12 +13,18 @@ function Entry()
 	sharedI.Shared.Miau = 0
 	sharedI.Shared.Miau2 = 1
 
+	-- Non string indexer
+	sharedI.Shared[1] = "Hi"
+	assert(sharedI.Shared[1] == "Hi")
+
 	-- Test __iter
 	for k, v in sharedI.Shared do
 		if k == "Miau" then
 			assert(v == 0)
 		elseif k == "Miau2" then
 			assert(v == 1)
+		elseif k == 1 then
+			assert(v == "Hi")
 		end
 	end
 
