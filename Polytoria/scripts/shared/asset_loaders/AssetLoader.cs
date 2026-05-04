@@ -14,135 +14,103 @@ namespace Polytoria.Shared.AssetLoaders;
 
 public partial class AssetLoader : Node
 {
+
+	private readonly record struct AssetCacheKey(ResourceType Type, uint ID, Vector2I? Resize);
+
 	public AssetLoader()
 	{
 		Singleton = this;
 		AssetProvider = new PTAssetProvider();
-
-		_ = Task.Run(Process);
 	}
 
 	public static AssetLoader Singleton { get; private set; } = null!;
 	public bool UseAssetLoader { get; set; } = true;
 
-	private const int MaxConcurrentRequests = 1;
+	private const int MaxConcurrentRequests = 3;
 
 	private long _assetSizeBytes = 0;
 	internal long AssetSizeBytes => _assetSizeBytes;
-	internal int PendingAssetsCount => _queue.Count;
+	internal int PendingAssetsCount => _pendingRequests.Count;
 	internal int AssetCacheCount => _cache.Count;
 
-	private readonly BlockingCollection<(CacheItem Item, dynamic Callback)> _queue = [];
-
-	private readonly ConcurrentDictionary<int, CacheItem> _cache = [];
-	private readonly ConcurrentDictionary<int, TaskCompletionSource<CacheItem>> _pendingRequests = [];
+	private readonly ConcurrentDictionary<AssetCacheKey, CacheItem> _cache = [];
+	private readonly ConcurrentDictionary<AssetCacheKey, Lazy<Task<CacheItem>>> _pendingRequests = [];
+	private readonly SemaphoreSlim _loadSlots = new(MaxConcurrentRequests);
 
 	public IAssetProvider AssetProvider = null!;
 
-	private void Process()
+	private static AssetCacheKey KeyFor(CacheItem item)
 	{
-		List<Task> workers = [];
-		for (int i = 0; i < MaxConcurrentRequests; i++)
-		{
-			workers.Add(Task.Run(async () =>
-			{
-				while (true)
-				{
-					(CacheItem item, dynamic callback) = _queue.Take();
-
-					try
-					{
-						CacheItem result;
-						int hash = item.GetHashCode();
-						if (_pendingRequests.TryGetValue(hash, out TaskCompletionSource<CacheItem>? pi))
-						{
-							result = await pi.Task;
-						}
-						else if (!_cache.TryGetValue(hash, out result))
-						{
-							TaskCompletionSource<CacheItem> ci = new();
-							_pendingRequests.TryAdd(hash, ci);
-							try
-							{
-								result = await LoadResource(item);
-								ci.SetResult(result);
-								Interlocked.Add(ref _assetSizeBytes, result.SizeBytes);
-							}
-							catch
-							{
-								ci.TrySetException(new Exception("Failed to load asset ID: " + item.ID));
-								throw; // rethrow so the outer catch can log it
-							}
-							finally
-							{
-								_pendingRequests.TryRemove(hash, out _);
-							}
-						}
-
-						Callable.From(() =>
-						{
-							if (callback is Action<CacheItem> cl)
-							{
-								cl(result);
-							}
-							else if (callback is Action<Resource> cr)
-							{
-								cr(result.Resource);
-							}
-						}).CallDeferred();
-					}
-					catch (Exception exception)
-					{
-						PT.PrintErr("Failed to load resource (Type: " + item.Type + ", ID: " + item.ID + "): " + exception.Message);
-					}
-				}
-			}));
-		}
+		return new AssetCacheKey(item.Type, item.ID, item.Resize);
 	}
 
 	private async Task<CacheItem> LoadResource(CacheItem item)
 	{
 		if (item.ID == 0)
 		{
-			return new CacheItem();
+			return item;
 		}
 
 		if (!UseAssetLoader)
 		{
-			return new CacheItem();
+			return item;
 		}
-		CacheItem result = await AssetProvider.LoadResource(item);
 
-		_cache.TryAdd(result.GetHashCode(), result);
-		return result;
+		return await AssetProvider.LoadResource(item);
 	}
 
 	public void GetResource(CacheItem item, Action<Resource> callback)
 	{
-		int hash = item.GetHashCode();
-
-		// Return cached asset
-		if (_cache.TryGetValue(hash, out CacheItem cached))
+		GetRawCache(item, result =>
 		{
-			Callable.From(() => callback(cached.Resource)).CallDeferred();
-			return;
-		}
+			callback(result.Resource);
+		});
+	}
 
-		_queue.Add((item, callback));
+	private async Task<CacheItem> LoadItem(CacheItem item, AssetCacheKey key)
+	{
+		await _loadSlots.WaitAsync();
+		try
+		{
+			CacheItem result = await LoadResource(item);
+			_cache[key] = result;
+			Interlocked.Add(ref _assetSizeBytes, result.SizeBytes);
+			return result;
+		}
+		finally
+		{
+			_pendingRequests.TryRemove(key, out _);
+			_loadSlots.Release();
+		}
 	}
 
 	public void GetRawCache(CacheItem item, Action<CacheItem> callback)
 	{
-		int hash = item.GetHashCode();
+		AssetCacheKey key = KeyFor(item);
 
 		// Return cached asset
-		if (_cache.TryGetValue(hash, out CacheItem cached))
+		if (_cache.TryGetValue(key, out CacheItem cached))
 		{
 			Callable.From(() => callback(cached)).CallDeferred();
 			return;
 		}
 
-		_queue.Add((item, callback));
+		Lazy<Task<CacheItem>> task = _pendingRequests.GetOrAdd(key, _ => new Lazy<Task<CacheItem>>(() => LoadItem(item, key), LazyThreadSafetyMode.ExecutionAndPublication));
+
+		_ = WaitForResource(task.Value, item, callback);
+	}
+
+	private async Task WaitForResource(Task<CacheItem> task, CacheItem item, Action<CacheItem> callback)
+	{
+		try
+		{
+			CacheItem result = await task;
+			Callable.From(() => callback(result)).CallDeferred();
+		}
+		catch (Exception exception)
+		{
+			Callable.From(() => PT.PrintErr("Failed to load resource (Type: " + item.Type + ", ID: " + item.ID + "): " + exception.Message)).CallDeferred();
+		}
 	}
 }
 
@@ -162,6 +130,7 @@ public enum ResourceType
 	Font
 }
 
+
 public struct CacheItem
 {
 	public ResourceType Type { get; set; }
@@ -173,12 +142,12 @@ public struct CacheItem
 
 	public override readonly bool Equals(object? obj)
 	{
-		return obj is CacheItem item && item.Type == Type && item.ID == ID;
+		return obj is CacheItem item && item.Type == Type && item.ID == ID && item.Resize == Resize;
 	}
 
 	public override readonly int GetHashCode()
 	{
-		return HashCode.Combine(Type, ID);
+		return HashCode.Combine(Type, ID, Resize);
 	}
 
 	public static bool operator ==(CacheItem left, CacheItem right)

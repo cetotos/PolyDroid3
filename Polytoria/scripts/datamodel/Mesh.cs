@@ -57,7 +57,14 @@ public sealed partial class Mesh : Entity
 				Loading = true;
 				_asset.LinkTo(this);
 				_asset.ResourceLoaded += OnResourceLoaded;
-				_asset.QueueLoadResource();
+				if (_asset.IsResourceLoaded && _asset.Resource != null)
+				{
+					OnResourceLoaded(_asset.Resource);
+				}
+				else
+				{
+					_asset.QueueLoadResource();
+				}
 			}
 			OnPropertyChanged();
 		}
@@ -71,7 +78,17 @@ public sealed partial class Mesh : Entity
 		{
 			_assetID = value;
 			CreatePTMeshAsset();
-			_asset?.QueueLoadResource();
+			if (_asset != null)
+			{
+				if (_asset.IsResourceLoaded && _asset.Resource != null)
+				{
+					OnResourceLoaded(_asset.Resource);
+				}
+				else
+				{
+					_asset.QueueLoadResource();
+				}
+			}
 			OnPropertyChanged();
 		}
 	}

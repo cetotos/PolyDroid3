@@ -56,5 +56,8 @@ func  _export_begin(features: PackedStringArray, is_debug: bool, path: String, f
 		for item in DirAccess.get_files_at(platformpath):
 			if item.ends_with(dllsuffix):
 				var fullpath = platformpath.path_join(item)
-				print("Copying ", platformpath, " ", item)
-				DirAccess.copy_absolute(ProjectSettings.globalize_path(fullpath), export_dir.path_join(item))
+				if features.has("macos"):
+					add_shared_object(fullpath, PackedStringArray(), "")
+				else:
+					print("Copying ", platformpath, " ", item)
+					DirAccess.copy_absolute(ProjectSettings.globalize_path(fullpath), export_dir.path_join(item))

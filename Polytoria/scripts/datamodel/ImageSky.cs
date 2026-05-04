@@ -44,7 +44,14 @@ public sealed partial class ImageSky : Sky
 			{
 				_topImage.LinkTo(this);
 				_topImage.ResourceLoaded += OnTopImageLoaded;
-				_topImage.QueueLoadResource();
+				if (_topImage.IsResourceLoaded && _topImage.Resource != null)
+				{
+					OnTopImageLoaded(_topImage.Resource);
+				}
+				else
+				{
+					_topImage.QueueLoadResource();
+				}
 			}
 			OnPropertyChanged();
 		}
@@ -67,7 +74,14 @@ public sealed partial class ImageSky : Sky
 			{
 				_bottomImage.LinkTo(this);
 				_bottomImage.ResourceLoaded += OnBottomImageLoaded;
-				_bottomImage.QueueLoadResource();
+				if (_bottomImage.IsResourceLoaded && _bottomImage.Resource != null)
+				{
+					OnBottomImageLoaded(_bottomImage.Resource);
+				}
+				else
+				{
+					_bottomImage.QueueLoadResource();
+				}
 			}
 			OnPropertyChanged();
 		}
@@ -90,7 +104,14 @@ public sealed partial class ImageSky : Sky
 			{
 				_leftImage.LinkTo(this);
 				_leftImage.ResourceLoaded += OnLeftImageLoaded;
-				_leftImage.QueueLoadResource();
+				if (_leftImage.IsResourceLoaded && _leftImage.Resource != null)
+				{
+					OnLeftImageLoaded(_leftImage.Resource);
+				}
+				else
+				{
+					_leftImage.QueueLoadResource();
+				}
 			}
 			OnPropertyChanged();
 		}
@@ -113,7 +134,14 @@ public sealed partial class ImageSky : Sky
 			{
 				_rightImage.LinkTo(this);
 				_rightImage.ResourceLoaded += OnRightImageLoaded;
-				_rightImage.QueueLoadResource();
+				if (_rightImage.IsResourceLoaded && _rightImage.Resource != null)
+				{
+					OnRightImageLoaded(_rightImage.Resource);
+				}
+				else
+				{
+					_rightImage.QueueLoadResource();
+				}
 			}
 			OnPropertyChanged();
 		}
@@ -136,7 +164,14 @@ public sealed partial class ImageSky : Sky
 			{
 				_frontImage.LinkTo(this);
 				_frontImage.ResourceLoaded += OnFrontImageLoaded;
-				_frontImage.QueueLoadResource();
+				if (_frontImage.IsResourceLoaded && _frontImage.Resource != null)
+				{
+					OnFrontImageLoaded(_frontImage.Resource);
+				}
+				else
+				{
+					_frontImage.QueueLoadResource();
+				}
 			}
 			OnPropertyChanged();
 		}
@@ -159,7 +194,14 @@ public sealed partial class ImageSky : Sky
 			{
 				_backImage.LinkTo(this);
 				_backImage.ResourceLoaded += OnBackImageLoaded;
-				_backImage.QueueLoadResource();
+				if (_backImage.IsResourceLoaded && _backImage.Resource != null)
+				{
+					OnBackImageLoaded(_backImage.Resource);
+				}
+				else
+				{
+					_backImage.QueueLoadResource();
+				}
 			}
 			OnPropertyChanged();
 		}

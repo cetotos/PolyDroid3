@@ -184,7 +184,15 @@ public sealed partial class PolytorianModel : CharacterModel
 				AddLoadCount();
 				_faceImage.LinkTo(this);
 				_faceImage.ResourceLoaded += OnFaceLoaded;
-				_faceImage.QueueLoadResource();
+				
+				if (_faceImage.IsResourceLoaded && _faceImage.Resource != null)
+				{
+					OnFaceLoaded(_faceImage.Resource);
+				}
+				else
+				{
+					_faceImage.QueueLoadResource();
+				}
 			}
 			else
 			{
@@ -214,7 +222,14 @@ public sealed partial class PolytorianModel : CharacterModel
 				_bodyOverrided = true;
 				_bodyMesh.LinkTo(this);
 				_bodyMesh.ResourceLoaded += OnBodyLoaded;
-				_bodyMesh.QueueLoadResource();
+				if (_bodyMesh.IsResourceLoaded && _bodyMesh.Resource != null)
+				{
+					OnBodyLoaded(_bodyMesh.Resource);
+				}
+				else
+				{
+					_bodyMesh.QueueLoadResource();
+				}
 			}
 			OnPropertyChanged();
 		}

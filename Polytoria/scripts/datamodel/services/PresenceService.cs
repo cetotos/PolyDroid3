@@ -54,7 +54,15 @@ public sealed partial class PresenceService : Instance
 			{
 				_coverImage.ResourceLoaded += OnCoverImageLoaded;
 				_coverImage.LinkTo(this);
-				_coverImage.QueueLoadResource();
+
+				if (_coverImage.IsResourceLoaded && _coverImage.Resource != null)
+				{
+					OnCoverImageLoaded(_coverImage.Resource);
+				}
+				else
+				{
+					_coverImage.QueueLoadResource();
+				}
 			}
 
 			QueueUpdatePresence();

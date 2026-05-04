@@ -39,25 +39,20 @@ public partial class ResourceAsset : BaseAsset
 		base.PreDelete();
 	}
 
-	public override void Process(double delta)
+	public void QueueLoadResource()
 	{
-		if (!_queueLoadResource)
+		if (_queueLoadResource)
 		{
-			SetProcess(false);
 			return;
 		}
 
-		_queueLoadResource = false;
-		LoadResource();
-		SetProcess(false);
-
-		base.Process(delta);
-	}
-
-	public void QueueLoadResource()
-	{
 		_queueLoadResource = true;
-		SetProcess(true);
+
+		Callable.From(() =>
+		{
+			_queueLoadResource = false;
+			LoadResource();
+		}).CallDeferred();
 	}
 
 	public virtual void LoadResource() { }

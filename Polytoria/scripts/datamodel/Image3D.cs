@@ -48,7 +48,14 @@ public sealed partial class Image3D : Dynamic
 			{
 				_asset.LinkTo(this);
 				_asset.ResourceLoaded += OnResourceLoaded;
-				_asset.QueueLoadResource();
+				if (_asset.IsResourceLoaded && _asset.Resource != null)
+				{
+					OnResourceLoaded(_asset.Resource);
+				}
+				else
+				{
+					_asset.QueueLoadResource();
+				}
 			}
 			OnPropertyChanged();
 		}

@@ -67,6 +67,7 @@ public partial class PTHttpClient
 				byte[] body = msg.Content != null ? await msg.Content.ReadAsByteArrayAsync() : [];
 
 				HttpRequest req = new() { DownloadChunkSize = DefaultDownloadChunkSize };
+
 				Globals.Singleton.AddChild(req);
 
 				req.RequestCompleted += (result, responseCode, responseHeaders, responseBody) =>
