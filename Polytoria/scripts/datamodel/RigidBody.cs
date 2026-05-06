@@ -16,6 +16,7 @@ public partial class RigidBody : Physical
 	internal PhysicsMaterial PhysicsMat = null!;
 
 	private bool _useGravity = true;
+	private bool _lockRotation = false;
 	private float _mass;
 	private float _friction;
 	private float _drag;
@@ -153,6 +154,20 @@ public partial class RigidBody : Physical
 			_bounciness = value;
 
 			PhysicsMat.Bounce = value;
+
+			OnPropertyChanged();
+		}
+	}
+
+	[Editable, ScriptProperty, DefaultValue(false)]
+	public bool LockRotation
+	{
+		get => _lockRotation;
+		set
+		{
+			_lockRotation = value;
+
+			GDRigidBody.LockRotation = value;
 
 			OnPropertyChanged();
 		}
