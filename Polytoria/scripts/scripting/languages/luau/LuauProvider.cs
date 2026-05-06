@@ -721,40 +721,54 @@ public sealed partial class LuauProvider : IScriptLanguageProvider
 			return 0;
 		}
 
-		Exception? capturedException = null;
-
 		LuaState co = InitalizeScript(ms);
 		int coRef = state.Ref();
 
 		// Sandbox thread
 		co.SandboxGlobals();
 
-		if (ms != null)
+		// Global to identify if calling from server/client
+		bool isClient = script is ClientScript;
+		co.PushBoolean(isClient);
+		co.SetGlobal("_CLIENT");
+		co.PushBoolean(!isClient);
+		co.SetGlobal("_SERVER");
+
+		Exception? capturedException1 = null;
+
+		// Try compile
+		try
 		{
-			// Global to identify if calling from server/client
-			bool isClient = script is ClientScript;
-			co.PushBoolean(isClient);
-			co.SetGlobal("_CLIENT");
-			co.PushBoolean(!isClient);
-			co.SetGlobal("_SERVER");
+			ms.TryCompile();
 		}
+		catch (Exception e)
+		{
+			capturedException1 = e;
+		}
+
+		if (capturedException1 != null)
+		{
+			state.Unref(coRef);
+			return state.Error(co.ToString(-1) ?? capturedException1.Message);
+		}
+
+		Exception? capturedException2 = null;
 
 		// Load source
 		try
 		{
-			byte[] compiled = LuaState.Compile(source);
-			co.Load(chunkName, compiled);
+			co.Load(chunkName, ms.Bytecode!);
 		}
 		catch (Exception ex)
 		{
-			capturedException = ex;
+			capturedException2 = ex;
 		}
 
 		// Caught error
-		if (capturedException != null)
+		if (capturedException2 != null)
 		{
 			state.Unref(coRef);
-			return state.Error(co.ToString(-1) ?? capturedException.Message);
+			return state.Error(co.ToString(-1) ?? capturedException2.Message);
 		}
 
 		TaskCompletionSource<int> tcs = new();
