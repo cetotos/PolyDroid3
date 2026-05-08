@@ -131,9 +131,24 @@ public class PTQuaternion : IScriptGDObject
 		Vector3 from = fromDirection.Normalized();
 		Vector3 to = toDirection.Normalized();
 
-		Basis basis = Basis.LookingAt(to, Vector3.Up) * Basis.LookingAt(from, Vector3.Up).Inverse();
+		float dot = from.Dot(to);
 
-		return FromGDClass(basis.GetRotationQuaternion());
+		// same direction
+		if (dot >= 1.0f - 1e-6f)
+			return FromGDClass(Quaternion.Identity);
+
+		// opposite directions
+		if (dot <= -1.0f + 1e-6f)
+		{
+			Vector3 perpendicular = from.Cross(Vector3.Up);
+			if (perpendicular.LengthSquared() < 1e-6f)
+				perpendicular = from.Cross(Vector3.Right);
+			return FromGDClass(new Quaternion(perpendicular.Normalized(), Mathf.Pi));
+		}
+
+		Vector3 axis = from.Cross(to).Normalized();
+		float angle = Mathf.Acos(Mathf.Clamp(dot, -1.0f, 1.0f));
+		return FromGDClass(new Quaternion(axis, angle));
 	}
 
 	[ScriptMethod(ConvertParamsToGD = false)]
