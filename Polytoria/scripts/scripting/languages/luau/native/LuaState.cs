@@ -623,10 +623,11 @@ public partial class LuaState : IDisposable
 			NewTable();
 
 			NewTable();
-
 			PushValue(LuaState.LUA_GLOBALSINDEX);
 			SetField(-2, "__index");
+			SetReadOnly(-1, true);
 			SetMetaTable(-2);
+
 			Replace(LuaState.LUA_GLOBALSINDEX);
 		}
 	}

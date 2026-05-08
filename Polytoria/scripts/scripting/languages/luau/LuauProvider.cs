@@ -68,12 +68,6 @@ public sealed partial class LuauProvider : IScriptLanguageProvider
 		{ "PartShape", typeof(Part.LegacyShapeEnum) },
 	};
 
-	public static readonly Dictionary<string, string[]> AllowedTableMethods = new()
-	{
-		["os"] = ["time", "date", "clock", "difftime"],
-		["debug"] = ["traceback"],
-	};
-
 	public static readonly string[] DisallowedGlobals =
 	[
 		"load",
@@ -104,9 +98,47 @@ public sealed partial class LuauProvider : IScriptLanguageProvider
 	public LuauProvider()
 	{
 		Singleton = this;
-		GlobalLuaState = new();
-		InitializeCache(GlobalLuaState);
-		GlobalLuaState.OpenLibs();
+		LuaState state = new();
+		GlobalLuaState = state;
+		InitializeCache(state);
+		state.OpenLibs();
+
+		foreach (string item in DisallowedGlobals)
+		{
+			state.PushNil();
+			state.SetGlobal(item);
+		}
+
+		// Register custom coroutine.resume
+		state.GetGlobal("coroutine");
+		state.PushCFunction(LuaCoroutineResume, "coroutine.resume");
+		state.SetField(-2, "resume");
+
+		state.PushCFunction(LuaCoroutineWrap, "coroutine.wrap");
+		state.SetField(-2, "wrap");
+
+		RegisterLuaExtensions(state);
+
+		// Set all global library tables to read-only
+		state.PushNil();
+		while (state.Next(LuaState.LUA_GLOBALSINDEX))
+		{
+			if (state.IsTable(-1))
+				state.SetReadOnly(-1, true);
+			state.Pop(1);
+		}
+
+		// Set all builtin metatables to read-only
+		state.PushString("");
+		if (state.GetMetaTable(-1) != LuaType.Nil)
+		{
+			state.SetReadOnly(-1, true);
+			state.Pop(2); // pop metatable + string
+		}
+		else
+		{
+			state.Pop(1); // pop string
+		}
 	}
 
 	public void Run(Script script)
@@ -159,44 +191,6 @@ public sealed partial class LuauProvider : IScriptLanguageProvider
 		SetGlobalTablePtr(state, _internalScriptPtr, script);
 		SetGlobalTablePtr(state, _loggerPtr, script.Root.ScriptService.Logger);
 
-		foreach (string item in DisallowedGlobals)
-		{
-			state.PushNil();
-			state.SetGlobal(item);
-		}
-
-		foreach ((string tableName, string[] allowedMethods) in AllowedTableMethods)
-		{
-			state.GetGlobal(tableName);
-
-			// Get all keys from the table
-			state.PushNil(); // First key
-			List<string> keysToRemove = [];
-
-			while (state.Next(-2))
-			{
-				state.Pop(1);
-
-				if (state.IsString(-1))
-				{
-					string? key = state.ToString(-1);
-					if (key != null && !allowedMethods.Contains(key))
-					{
-						keysToRemove.Add(key);
-					}
-				}
-			}
-
-			// Remove all non-allowed methods
-			foreach (string key in keysToRemove)
-			{
-				state.PushNil();
-				state.SetField(-2, key); // table[key] = nil
-			}
-
-			state.Pop(1);
-		}
-
 		state.Register("print", LuaPrint);
 		state.Register("wait", LuaWait);
 		state.Register("spawn", LuaSpawn);
@@ -232,14 +226,6 @@ public sealed partial class LuauProvider : IScriptLanguageProvider
 			PushCSClass(state, lib);
 			state.SetGlobal(name);
 		}
-
-		// Register custom coroutine.resume
-		state.GetGlobal("coroutine");
-		state.PushCFunction(LuaCoroutineResume, "coroutine.resume");
-		state.SetField(-2, "resume");
-
-		state.PushCFunction(LuaCoroutineWrap, "coroutine.wrap");
-		state.SetField(-2, "wrap");
 
 		state.PushString(Globals.AppVersion);
 		state.SetGlobal("_POLY_VERSION");
@@ -315,8 +301,6 @@ public sealed partial class LuauProvider : IScriptLanguageProvider
 
 		state.PushBoolean(script.Root.WorldID == 0);
 		state.SetGlobal("_LOCALTEST");
-
-		RegisterLuaExtensions(state);
 
 		var mainThread = NewThread(state);
 		script.LuauMainThread = mainThread;
