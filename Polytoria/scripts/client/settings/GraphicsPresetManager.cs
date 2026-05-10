@@ -43,11 +43,61 @@ public static class GraphicsPresetManager
 
 	private static readonly Dictionary<GraphicsPreset, PresetData> Presets = new()
 	{
-		[GraphicsPreset.Low] = new(0.75f, MsaaOption.Disabled, ShadowQuality.Off, 100f, false, false, false, false, false),
-		[GraphicsPreset.Medium] = new(1.0f, MsaaOption.X2, ShadowQuality.Medium, 1000f, true, true, false, false, false),
-		[GraphicsPreset.High] = new(1.0f, MsaaOption.X4, ShadowQuality.High, 1250f, true, true, true, false, false),
-		[GraphicsPreset.Ultra] = new(1.0f, MsaaOption.X8, ShadowQuality.Ultra, 1250f, true, true, true, true, false),
-		[GraphicsPreset.Photo] = new(1.0f, MsaaOption.X8, ShadowQuality.Ultra, 1250f, true, true, true, true, true),
+		[GraphicsPreset.Low] = new(
+			RenderScale: 0.75f,
+			Msaa: MsaaOption.Disabled,
+			ShadowQuality: ShadowQuality.Off,
+			ShadowDistance: 100f,
+			Glow: false,
+			Ssao: false,
+			Ssr: false,
+			Ssil: false,
+			Sdfgi: false
+		),
+		[GraphicsPreset.Medium] = new(
+			RenderScale: 1.0f,
+			Msaa: MsaaOption.X2,
+			ShadowQuality: ShadowQuality.Medium,
+			ShadowDistance: 1000f,
+			Glow: true,
+			Ssao: true,
+			Ssr: false,
+			Ssil: false,
+			Sdfgi: false
+		),
+		[GraphicsPreset.High] = new(
+			RenderScale: 1.0f,
+			Msaa: MsaaOption.X4,
+			ShadowQuality: ShadowQuality.High,
+			ShadowDistance: 1250f,
+			Glow: true,
+			Ssao: true,
+			Ssr: true,
+			Ssil: false,
+			Sdfgi: false
+		),
+		[GraphicsPreset.Ultra] = new(
+			RenderScale: 1.0f,
+			Msaa: MsaaOption.X8,
+			ShadowQuality: ShadowQuality.Ultra,
+			ShadowDistance: 1250f,
+			Glow: true,
+			Ssao: true,
+			Ssr: true,
+			Ssil: true,
+			Sdfgi: false
+		),
+		[GraphicsPreset.Photo] = new(
+			RenderScale: 1.0f,
+			Msaa: MsaaOption.X8,
+			ShadowQuality: ShadowQuality.Ultra,
+			ShadowDistance: 1250f,
+			Glow: true,
+			Ssao: true,
+			Ssr: true,
+			Ssil: true,
+			Sdfgi: true
+		),
 	};
 
 	public static void ApplyPreset(GraphicsPreset preset)
