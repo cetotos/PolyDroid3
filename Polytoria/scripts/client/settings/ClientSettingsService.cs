@@ -21,8 +21,6 @@ public sealed partial class ClientSettingsService : SettingsServiceBase
 	protected override string SettingsPath => SettingsPathConst;
 	protected override IReadOnlyDictionary<string, SettingDef> Registry => ClientSettingsRegistry.Definitions;
 
-	private int _presetDepth;
-
 	public ClientSettingsService()
 	{
 		Instance = this;
@@ -37,7 +35,7 @@ public sealed partial class ClientSettingsService : SettingsServiceBase
 		if (!settingsExists)
 		{
 			GraphicsPreset autoPreset = GraphicsAutoDetector.Detect();
-			Set(ClientSettingKeys.Graphics.Preset, autoPreset);
+			Set(SharedSettingKeys.Graphics.Preset, autoPreset);
 
 			GraphicsBenchmarker benchmarker = new GraphicsBenchmarker();
 			AddChild(benchmarker);
@@ -65,7 +63,7 @@ public sealed partial class ClientSettingsService : SettingsServiceBase
 
 		void StartProfile()
 		{
-			GraphicsPreset current = Get<GraphicsPreset>(ClientSettingKeys.Graphics.Preset);
+			GraphicsPreset current = Get<GraphicsPreset>(SharedSettingKeys.Graphics.Preset);
 			if (current == GraphicsPreset.Custom)
 			{
 				benchmarker.QueueFree();
@@ -86,7 +84,7 @@ public sealed partial class ClientSettingsService : SettingsServiceBase
 						GraphicsPreset.Medium => GraphicsPreset.Low,
 						_ => current
 					};
-					Set(ClientSettingKeys.Graphics.Preset, lower);
+					Set(SharedSettingKeys.Graphics.Preset, lower);
 				}
 				else if (avgFps >= 55f)
 				{
@@ -96,7 +94,7 @@ public sealed partial class ClientSettingsService : SettingsServiceBase
 						GraphicsPreset.Medium => GraphicsPreset.High,
 						_ => current
 					};
-					Set(ClientSettingKeys.Graphics.Preset, higher);
+					Set(SharedSettingKeys.Graphics.Preset, higher);
 				}
 				benchmarker.QueueFree();
 			};
@@ -110,38 +108,6 @@ public sealed partial class ClientSettingsService : SettingsServiceBase
 
 	protected override void OnAfterSet(string key, object normalizedValue)
 	{
-		HandleGraphicsSettingChange(key, normalizedValue);
-	}
-
-	private void HandleGraphicsSettingChange(string key, object normalizedValue)
-	{
-		if (key == ClientSettingKeys.Graphics.Preset)
-		{
-			ApplyGraphicsPreset((GraphicsPreset)normalizedValue);
-			return;
-		}
-
-		if (_presetDepth > 0 || !GraphicsPresetManager.IsPresetManagedKey(key))
-			return;
-
-		GraphicsPreset currentPreset = Get<GraphicsPreset>(ClientSettingKeys.Graphics.Preset);
-		if (currentPreset != GraphicsPreset.Custom)
-			Set(ClientSettingKeys.Graphics.Preset, GraphicsPreset.Custom);
-	}
-
-	private void ApplyGraphicsPreset(GraphicsPreset preset)
-	{
-		if (preset == GraphicsPreset.Custom)
-			return;
-
-		_presetDepth++;
-		try
-		{
-			GraphicsPresetManager.ApplyPreset(preset);
-		}
-		finally
-		{
-			_presetDepth--;
-		}
+		GraphicsPresetManager.HandlePresetChange(this, key, normalizedValue);
 	}
 }

@@ -5,11 +5,11 @@
 using Godot;
 using Polytoria.Attributes;
 using Polytoria.Client.Settings;
+using Polytoria.Shared.Settings;
 
 #if CREATOR
 using Polytoria.Creator;
 using Polytoria.Creator.Settings;
-using Polytoria.Shared.Settings;
 #endif
 using Polytoria.Shared;
 using ObsoleteAttribute = Polytoria.Attributes.ObsoleteAttribute;
@@ -42,13 +42,12 @@ public sealed partial class Lighting : Instance
 #if CREATOR
 		if (CreatorSettingsService.Instance != null)
 		{
-			CreatorSettingsService.Instance.Changed += OnCreatorSettingChanged;
-			ApplyCreatorLightingEffects();
+			ApplyGraphicsSettings(CreatorSettingsService.Instance);
 		}
 		else
 #endif
 		{
-			ApplyGraphicsSettings();
+			ApplyGraphicsSettings(ClientSettingsService.Instance);
 		}
 
 
@@ -59,66 +58,18 @@ public sealed partial class Lighting : Instance
 
 	public override void PreDelete()
 	{
-#if CREATOR
-		if (CreatorSettingsService.Instance != null)
-		{
-			CreatorSettingsService.Instance.Changed -= OnCreatorSettingChanged;
-		}
-#endif
 		base.PreDelete();
 	}
 
-#if CREATOR
-	private void OnCreatorSettingChanged(SettingChangedEvent e)
+	public void ApplyGraphicsSettings(ISettingsContext settings)
 	{
-		if (e.Key == CreatorSettingKeys.Graphics.PhotoMode || e.Key == CreatorSettingKeys.Graphics.PostProcessing)
-		{
-			ApplyCreatorLightingEffects();
-		}
-	}
-#endif
-
-	private void ApplyCreatorLightingEffects()
-	{
-#if CREATOR
-		if (CreatorSettingsService.Instance == null)
-			return;
-
-		bool photoMode = CreatorSettingsService.Instance.Get<bool>(CreatorSettingKeys.Graphics.PhotoMode);
-		bool postProcessing = CreatorSettingsService.Instance.Get<bool>(CreatorSettingKeys.Graphics.PostProcessing);
-
-		if (Globals.IsMobileBuild)
-		{
-			environment.GlowEnabled = false;
-			environment.TonemapMode = Godot.Environment.ToneMapper.Linear;
-		}
-		else
-		{
-			bool setTo = postProcessing;
-			if (photoMode)
-			{
-				setTo = false;
-			}
-			environment.SsaoEnabled = setTo;
-			environment.GlowEnabled = setTo;
-		}
-
-		environment.SsrEnabled = photoMode;
-		environment.SdfgiEnabled = photoMode;
-		environment.SsilEnabled = photoMode;
-#endif
-	}
-
-	public void ApplyGraphicsSettings()
-	{
-		var settings = ClientSettingsService.Instance;
 		bool mobile = Globals.IsMobileBuild;
 
-		bool glow = settings.Get<bool>(ClientSettingKeys.PostProcessing.Glow);
-		bool ssao = settings.Get<bool>(ClientSettingKeys.PostProcessing.Ssao);
-		bool ssr = settings.Get<bool>(ClientSettingKeys.PostProcessing.Ssr);
-		bool ssil = settings.Get<bool>(ClientSettingKeys.PostProcessing.Ssil);
-		bool sdfgi = settings.Get<bool>(ClientSettingKeys.PostProcessing.Sdfgi);
+		bool glow = settings.Get<bool>(SharedSettingKeys.PostProcessing.Glow);
+		bool ssao = settings.Get<bool>(SharedSettingKeys.PostProcessing.Ssao);
+		bool ssr = settings.Get<bool>(SharedSettingKeys.PostProcessing.Ssr);
+		bool ssil = settings.Get<bool>(SharedSettingKeys.PostProcessing.Ssil);
+		bool sdfgi = settings.Get<bool>(SharedSettingKeys.PostProcessing.Sdfgi);
 
 		if (mobile)
 		{
@@ -135,10 +86,9 @@ public sealed partial class Lighting : Instance
 		environment.SsilEnabled = ssil;
 		environment.SdfgiEnabled = sdfgi;
 
-		// advanced settings
-		environment.SdfgiCascades = settings.Get<int>(ClientSettingKeys.PostProcessing.SdfgiCascades);
-		environment.SdfgiMinCellSize = settings.Get<float>(ClientSettingKeys.PostProcessing.SdfgiCellSize);
-		environment.SsilRadius = settings.Get<float>(ClientSettingKeys.PostProcessing.SsilRadius);
+		environment.SdfgiCascades = settings.Get<int>(SharedSettingKeys.PostProcessing.SdfgiCascades);
+		environment.SdfgiMinCellSize = settings.Get<float>(SharedSettingKeys.PostProcessing.SdfgiCellSize);
+		environment.SsilRadius = settings.Get<float>(SharedSettingKeys.PostProcessing.SsilRadius);
 	}
 
 	public void ApplySky(Sky sky)

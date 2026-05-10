@@ -27,8 +27,6 @@ public sealed partial class CreatorSettingsService : SettingsServiceBase
 		["CodeEditor.PreferredEditor"] = CreatorSettingKeys.CodeEditor.PreferredEditor,
 		["CodeEditor.IndentationMode"] = CreatorSettingKeys.CodeEditor.IndentationMode,
 		["CodeEditor.IndentationSize"] = CreatorSettingKeys.CodeEditor.IndentationSize,
-		["Graphics.PhotoMode"] = CreatorSettingKeys.Graphics.PhotoMode,
-		["Graphics.PostProcessing"] = CreatorSettingKeys.Graphics.PostProcessing,
 		["Graphics.VSync"] = SharedSettingKeys.Display.VSync,
 		["Graphics.RenderingMethod"] = SharedSettingKeys.Graphics.RenderingMethod,
 		["Popups.CloseModelWarning"] = CreatorSettingKeys.Popups.CloseModelWarning,
@@ -77,6 +75,21 @@ public sealed partial class CreatorSettingsService : SettingsServiceBase
 
 			var newData = new Dictionary<string, object?>();
 
+			if (oldData.TryGetValue("Graphics.PostProcessing", out string? postProcessingStr)
+				&& bool.TryParse(postProcessingStr, out bool postProcessing))
+			{
+				newData[SharedSettingKeys.PostProcessing.Glow] = postProcessing;
+				newData[SharedSettingKeys.PostProcessing.Ssao] = postProcessing;
+			}
+
+			if (oldData.TryGetValue("Graphics.PhotoMode", out string? photoModeStr)
+				&& bool.TryParse(photoModeStr, out bool photoMode) && photoMode)
+			{
+				newData[SharedSettingKeys.PostProcessing.Ssr] = true;
+				newData[SharedSettingKeys.PostProcessing.Sdfgi] = true;
+				newData[SharedSettingKeys.PostProcessing.Ssil] = true;
+			}
+
 			foreach ((string oldKey, string oldValue) in oldData)
 			{
 				if (!OldToNewKeyMap.TryGetValue(oldKey, out string? newKey))
@@ -106,4 +119,8 @@ public sealed partial class CreatorSettingsService : SettingsServiceBase
 		}
 	}
 
+	protected override void OnAfterSet(string key, object normalizedValue)
+	{
+		GraphicsPresetManager.HandlePresetChange(this, key, normalizedValue);
+	}
 }

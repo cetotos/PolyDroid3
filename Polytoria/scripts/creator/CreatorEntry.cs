@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 using Godot;
+using Polytoria.Client.Settings.Appliers;
 using Polytoria.Creator.Managers;
 using Polytoria.Creator.Settings;
 using Polytoria.Creator.Utils;
@@ -34,6 +35,8 @@ public partial class CreatorEntry : Node
 		};
 		AddChild(creatorSettingsService, true, InternalMode.Front);
 		creatorSettingsService.Init();
+
+		creatorSettingsService.AddChild(new GraphicsSettingsApplier { Name = GraphicsSettingsApplier.NodeName, Settings = creatorSettingsService }, true, InternalMode.Front);
 
 		GetViewport().GuiEmbedSubwindows = true;
 

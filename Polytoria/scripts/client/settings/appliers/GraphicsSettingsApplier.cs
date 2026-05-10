@@ -11,27 +11,45 @@ namespace Polytoria.Client.Settings.Appliers;
 
 public sealed partial class GraphicsSettingsApplier : Node
 {
+	public const string NodeName = "GraphicsSettingsApplier";
+
+	public ISettingsContext? Settings { get; set; }
 	private bool _postProcessingDirty;
+
+	public Viewport? RenderViewport { get; set; }
 
 	public override void _Ready()
 	{
-		ClientSettingsService.Instance.Changed += OnChanged;
-		ApplyAll();
+		if (Settings != null)
+			Settings.Changed += OnChanged;
+
+		ApplyPostProcessing();
+		ApplyViewportSettings();
+	}
+
+	public void ApplyViewportSettings()
+	{
+		ApplyRenderScale();
+		ApplyMsaa();
+		ApplyShadowQuality();
+		ApplyShadowDistance();
 	}
 
 	public override void _ExitTree()
 	{
-		ClientSettingsService.Instance.Changed -= OnChanged;
+		if (Settings != null)
+			Settings.Changed -= OnChanged;
 		base._ExitTree();
+	}
+
+	private Viewport GetRenderViewport()
+	{
+		return RenderViewport ?? GetViewport();
 	}
 
 	private void OnChanged(SettingChangedEvent change)
 	{
-		if (change.Key == ClientSettingKeys.PostProcessing.NormalMaps)
-		{
-			ApplyNormalMaps();
-		}
-		else if (change.Key.StartsWith("graphics.post_processing."))
+		if (change.Key.StartsWith(SharedSettingKeys.PostProcessing.Prefix))
 		{
 			if (!_postProcessingDirty)
 			{
@@ -47,16 +65,16 @@ public sealed partial class GraphicsSettingsApplier : Node
 		{
 			switch (change.Key)
 			{
-				case ClientSettingKeys.Graphics.RenderScale:
+				case SharedSettingKeys.Graphics.RenderScale:
 					ApplyRenderScale();
 					break;
-				case ClientSettingKeys.Graphics.Msaa:
+				case SharedSettingKeys.Graphics.Msaa:
 					ApplyMsaa();
 					break;
-				case ClientSettingKeys.Graphics.ShadowQuality:
+				case SharedSettingKeys.Graphics.ShadowQuality:
 					ApplyShadowQuality();
 					break;
-				case ClientSettingKeys.Graphics.ShadowDistance:
+				case SharedSettingKeys.Graphics.ShadowDistance:
 					ApplyShadowDistance();
 					break;
 			}
@@ -71,51 +89,32 @@ public sealed partial class GraphicsSettingsApplier : Node
 			return;
 		}
 
-		world.Lighting.ApplyGraphicsSettings();
-	}
-
-	private void ApplyNormalMaps()
-	{
-		bool enabled = ClientSettingsService.Instance.Get<bool>(ClientSettingKeys.PostProcessing.NormalMaps);
-		if (Globals.IsMobileBuild)
-		{
-			enabled = false;
-		}
-		Globals.SetNormalMapsEnabled(enabled);
-	}
-
-	private void ApplyAll()
-	{
-		ApplyPostProcessing();
-		ApplyNormalMaps();
-		ApplyRenderScale();
-		ApplyMsaa();
-		ApplyShadowQuality();
-		ApplyShadowDistance();
+		world.Lighting.ApplyGraphicsSettings(Settings!);
 	}
 
 	private void ApplyRenderScale()
 	{
-		float renderScale = ClientSettingsService.Instance.Get<float>(ClientSettingKeys.Graphics.RenderScale);
-		GetViewport().Scaling3DScale = renderScale;
+		float renderScale = Settings!.Get<float>(SharedSettingKeys.Graphics.RenderScale);
+		GetRenderViewport().Scaling3DScale = renderScale;
 	}
 
 	private void ApplyMsaa()
 	{
-		MsaaOption msaa = ClientSettingsService.Instance.Get<MsaaOption>(ClientSettingKeys.Graphics.Msaa);
-		GetViewport().Msaa3D = msaa switch
+		MsaaOption msaa = Settings!.Get<MsaaOption>(SharedSettingKeys.Graphics.Msaa);
+		Viewport viewport = GetRenderViewport();
+		viewport.Msaa3D = msaa switch
 		{
 			MsaaOption.Disabled => Viewport.Msaa.Disabled,
 			MsaaOption.X2 => Viewport.Msaa.Msaa2X,
 			MsaaOption.X4 => Viewport.Msaa.Msaa4X,
 			MsaaOption.X8 => Viewport.Msaa.Msaa8X,
-			_ => GetViewport().Msaa3D
+			_ => viewport.Msaa3D
 		};
 	}
 
 	private void ApplyShadowQuality()
 	{
-		ShadowQuality quality = ClientSettingsService.Instance.Get<ShadowQuality>(ClientSettingKeys.Graphics.ShadowQuality);
+		ShadowQuality quality = Settings!.Get<ShadowQuality>(SharedSettingKeys.Graphics.ShadowQuality);
 
 		RenderingServer.ShadowQuality gdQuality = quality switch
 		{
@@ -151,7 +150,7 @@ public sealed partial class GraphicsSettingsApplier : Node
 		RenderingServer.PositionalSoftShadowFilterSetQuality(gdQuality);
 
 		RenderingServer.DirectionalShadowAtlasSetSize(directionalShadowSize, false);
-		RenderingServer.ViewportSetPositionalShadowAtlasSize(GetViewport().GetViewportRid(), positionalShadowSize, false);
+		RenderingServer.ViewportSetPositionalShadowAtlasSize(GetRenderViewport().GetViewportRid(), positionalShadowSize, false);
 
 		Light.NotifyShadowSettingsChanged();
 	}
@@ -167,7 +166,7 @@ public sealed partial class GraphicsSettingsApplier : Node
 		SunLight sun = world.Lighting.Sun;
 		DirectionalLight3D node = (DirectionalLight3D)sun.LightNode;
 
-		float distance = ClientSettingsService.Instance.Get<float>(ClientSettingKeys.Graphics.ShadowDistance);
+		float distance = Settings!.Get<float>(SharedSettingKeys.Graphics.ShadowDistance);
 		node.DirectionalShadowMaxDistance = distance;
 	}
 }

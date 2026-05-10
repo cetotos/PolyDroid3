@@ -17,9 +17,10 @@ public static class CreatorSettingsRegistry
 		new() { Key = "interface", Label = "Interface", IconPath = DefaultSectionIcon, SortOrder = 1 },
 		new() { Key = "display", Label = "Display", IconPath = "res://assets/textures/ui-icons/camera.svg", SortOrder = 2 },
 		new() { Key = "graphics", Label = "Graphics", IconPath = "res://assets/textures/ui-icons/mountain.svg", SortOrder = 3 },
-		new() { Key = "backup", Label = "Backup", IconPath = DefaultSectionIcon, SortOrder = 4 },
-		new() { Key = "code_editor", Label = "Code Editor", IconPath = DefaultSectionIcon, SortOrder = 5 },
-		new() { Key = "popups", Label = "Popups", IconPath = DefaultSectionIcon, SortOrder = 6 },
+		new() { Key = "post_processing", Label = "Post Processing", IconPath = "res://assets/textures/ui-icons/rocket.svg", SortOrder = 4 },
+		new() { Key = "backup", Label = "Backup", IconPath = DefaultSectionIcon, SortOrder = 5 },
+		new() { Key = "code_editor", Label = "Code Editor", IconPath = DefaultSectionIcon, SortOrder = 6 },
+		new() { Key = "popups", Label = "Popups", IconPath = DefaultSectionIcon, SortOrder = 7 },
 	];
 
 	public static readonly IReadOnlyDictionary<string, SettingDef> Definitions = Build();
@@ -176,31 +177,6 @@ public static class CreatorSettingsRegistry
 				ValueKind = SettingValueKind.Bool,
 				ControlKind = SettingControlKind.Toggle,
 				DefaultValue = true
-			});
-
-		// Graphics (creator-specific)
-		defs.Add(CreatorSettingKeys.Graphics.PhotoMode,
-			new SettingDef<bool>
-			{
-				Key = CreatorSettingKeys.Graphics.PhotoMode,
-				SectionKey = "graphics",
-				Label = "Photo Mode",
-				Description = "Enable photo mode rendering (SSR, SDFGI, SSIL enabled).",
-				ValueKind = SettingValueKind.Bool,
-				ControlKind = SettingControlKind.Toggle,
-				DefaultValue = false
-			});
-
-		defs.Add(CreatorSettingKeys.Graphics.PostProcessing,
-			new SettingDef<bool>
-			{
-				Key = CreatorSettingKeys.Graphics.PostProcessing,
-				SectionKey = "graphics",
-				Label = "Post Processing",
-				Description = "Enable glow and ambient occlusion effects.",
-				ValueKind = SettingValueKind.Bool,
-				ControlKind = SettingControlKind.Toggle,
-				DefaultValue = false
 			});
 
 		SettingDef.ValidateAll(defs.Values);

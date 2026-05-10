@@ -29,12 +29,6 @@ public static class CreatorSettingKeys
 		public const string IndentationSize = "code_editor.indentation_size";
 	}
 
-	public static class Graphics
-	{
-		public const string PhotoMode = "graphics.photo_mode";
-		public const string PostProcessing = "graphics.post_processing";
-	}
-
 	public static class Popups
 	{
 		public const string CloseModelWarning = "popups.close_model_warning";

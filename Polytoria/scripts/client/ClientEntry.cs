@@ -201,7 +201,7 @@ public sealed partial class ClientEntry : Node3D
 
 		settings.AddChild(new DisplaySettingsApplier { Name = "DisplaySettingsApplier" }, true, InternalMode.Front);
 		settings.AddChild(new AudioSettingsApplier { Name = "AudioSettingsApplier" }, true, InternalMode.Front);
-		settings.AddChild(new GraphicsSettingsApplier { Name = "GraphicsSettingsApplier" }, true, InternalMode.Front);
+		settings.AddChild(new GraphicsSettingsApplier { Name = GraphicsSettingsApplier.NodeName, Settings = settings }, true, InternalMode.Front);
 
 		DatamodelBridge = new()
 		{
