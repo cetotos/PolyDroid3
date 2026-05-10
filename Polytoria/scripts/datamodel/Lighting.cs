@@ -8,6 +8,8 @@ using Polytoria.Client.Settings;
 
 #if CREATOR
 using Polytoria.Creator;
+using Polytoria.Creator.Settings;
+using Polytoria.Shared.Settings;
 #endif
 using Polytoria.Shared;
 using ObsoleteAttribute = Polytoria.Attributes.ObsoleteAttribute;
@@ -38,10 +40,9 @@ public sealed partial class Lighting : Instance
 		_sky = environment.Sky;
 
 #if CREATOR
-		if (CreatorSettings.Singleton != null)
+		if (CreatorSettingsService.Instance != null)
 		{
-			CreatorSettings.Singleton.GetSettingProperty("Graphics.PhotoMode")!.ValueChanged += CreatorLightingValueChanged;
-			CreatorSettings.Singleton.GetSettingProperty("Graphics.PostProcessing")!.ValueChanged += CreatorLightingValueChanged;
+			CreatorSettingsService.Instance.Changed += OnCreatorSettingChanged;
 			ApplyCreatorLightingEffects();
 		}
 		else
@@ -59,30 +60,32 @@ public sealed partial class Lighting : Instance
 	public override void PreDelete()
 	{
 #if CREATOR
-		if (CreatorSettings.Singleton != null)
+		if (CreatorSettingsService.Instance != null)
 		{
-			CreatorSettings.Singleton.GetSettingProperty("Graphics.PhotoMode")!.ValueChanged -= CreatorLightingValueChanged;
-			CreatorSettings.Singleton.GetSettingProperty("Graphics.PostProcessing")!.ValueChanged -= CreatorLightingValueChanged;
+			CreatorSettingsService.Instance.Changed -= OnCreatorSettingChanged;
 		}
 #endif
 		base.PreDelete();
 	}
 
 #if CREATOR
-	private void CreatorLightingValueChanged(object? _)
+	private void OnCreatorSettingChanged(SettingChangedEvent e)
 	{
-		ApplyCreatorLightingEffects();
+		if (e.Key == CreatorSettingKeys.Graphics.PhotoMode || e.Key == CreatorSettingKeys.Graphics.PostProcessing)
+		{
+			ApplyCreatorLightingEffects();
+		}
 	}
 #endif
 
 	private void ApplyCreatorLightingEffects()
 	{
 #if CREATOR
-		if (CreatorSettings.Singleton == null)
+		if (CreatorSettingsService.Instance == null)
 			return;
 
-		bool photoMode = CreatorSettings.Singleton.GetSetting<bool>("Graphics.PhotoMode");
-		bool postProcessing = CreatorSettings.Singleton.GetSetting<bool>("Graphics.PostProcessing");
+		bool photoMode = CreatorSettingsService.Instance.Get<bool>(CreatorSettingKeys.Graphics.PhotoMode);
+		bool postProcessing = CreatorSettingsService.Instance.Get<bool>(CreatorSettingKeys.Graphics.PostProcessing);
 
 		if (Globals.IsMobileBuild)
 		{

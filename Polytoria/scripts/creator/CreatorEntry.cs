@@ -4,6 +4,7 @@
 
 using Godot;
 using Polytoria.Creator.Managers;
+using Polytoria.Creator.Settings;
 using Polytoria.Creator.Utils;
 using Polytoria.Datamodel.Creator;
 using Polytoria.Shared;
@@ -24,11 +25,12 @@ public partial class CreatorEntry : Node
 		CreatorService creatorService = new();
 		AddChild(creatorService);
 
-		CreatorSettings creatorSettings = new()
+		CreatorSettingsService creatorSettingsService = new()
 		{
-			Name = "CreatorSettings"
+			Name = "CreatorSettingsService"
 		};
-		AddChild(creatorSettings, true, InternalMode.Front);
+		AddChild(creatorSettingsService, true, InternalMode.Front);
+		creatorSettingsService.Init();
 
 		GetViewport().GuiEmbedSubwindows = true;
 

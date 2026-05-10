@@ -1,91 +1,72 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+using System.Collections.Generic;
+using Polytoria.Shared;
+using Polytoria.Shared.Settings;
+
 namespace Polytoria.Client.Settings;
 
 public static class GraphicsPresetManager
 {
+	private static readonly HashSet<string> PresetManagedKeys = new()
+	{
+		SharedSettingKeys.Graphics.RenderingMethod,
+		ClientSettingKeys.Graphics.RenderScale,
+		ClientSettingKeys.Graphics.Msaa,
+		ClientSettingKeys.Graphics.ShadowQuality,
+		ClientSettingKeys.Graphics.ShadowDistance,
+		ClientSettingKeys.PostProcessing.Glow,
+		ClientSettingKeys.PostProcessing.Ssao,
+		ClientSettingKeys.PostProcessing.Ssr,
+		ClientSettingKeys.PostProcessing.Ssil,
+		ClientSettingKeys.PostProcessing.Sdfgi,
+	};
+
 	public static bool IsPresetManagedKey(string key)
 	{
-		return key == ClientSettingKeys.Graphics.RenderingMethod
-			|| key == ClientSettingKeys.Graphics.RenderScale
-			|| key == ClientSettingKeys.Graphics.Msaa
-			|| key == ClientSettingKeys.Graphics.ShadowQuality
-			|| key == ClientSettingKeys.Graphics.ShadowDistance
-			|| key == ClientSettingKeys.PostProcessing.Glow
-			|| key == ClientSettingKeys.PostProcessing.Ssao
-			|| key == ClientSettingKeys.PostProcessing.Ssr
-			|| key == ClientSettingKeys.PostProcessing.Ssil
-			|| key == ClientSettingKeys.PostProcessing.Sdfgi
-			|| key == ClientSettingKeys.PostProcessing.NormalMaps;
+		return PresetManagedKeys.Contains(key);
 	}
+
+	private sealed record PresetData(
+		float RenderScale,
+		MsaaOption Msaa,
+		ShadowQuality ShadowQuality,
+		float ShadowDistance,
+		bool Glow,
+		bool Ssao,
+		bool Ssr,
+		bool Ssil,
+		bool Sdfgi
+	);
+
+	private static readonly Dictionary<GraphicsPreset, PresetData> Presets = new()
+	{
+		[GraphicsPreset.Low] = new(0.75f, MsaaOption.Disabled, ShadowQuality.Off, 100f, false, false, false, false, false),
+		[GraphicsPreset.Medium] = new(1.0f, MsaaOption.X2, ShadowQuality.Medium, 1000f, true, true, false, false, false),
+		[GraphicsPreset.High] = new(1.0f, MsaaOption.X4, ShadowQuality.High, 1250f, true, true, true, false, false),
+		[GraphicsPreset.Ultra] = new(1.0f, MsaaOption.X8, ShadowQuality.Ultra, 1250f, true, true, true, true, false),
+		[GraphicsPreset.Photo] = new(1.0f, MsaaOption.X8, ShadowQuality.Ultra, 1250f, true, true, true, true, true),
+	};
 
 	public static void ApplyPreset(GraphicsPreset preset)
 	{
-		var settings = ClientSettingsService.Instance;
-
-		switch (preset)
+		if (!Presets.TryGetValue(preset, out var data))
 		{
-			case GraphicsPreset.Low:
-				settings.Set(ClientSettingKeys.Graphics.RenderScale, 0.75f);
-				settings.Set(ClientSettingKeys.Graphics.Msaa, MsaaOption.Disabled);
-				settings.Set(ClientSettingKeys.Graphics.ShadowQuality, ShadowQuality.Off);
-				settings.Set(ClientSettingKeys.Graphics.ShadowDistance, 100f);
-				settings.Set(ClientSettingKeys.PostProcessing.Glow, false);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssao, false);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssr, false);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssil, false);
-				settings.Set(ClientSettingKeys.PostProcessing.Sdfgi, false);
-				settings.Set(ClientSettingKeys.PostProcessing.NormalMaps, false);
-				break;
-			case GraphicsPreset.Medium:
-				settings.Set(ClientSettingKeys.Graphics.RenderScale, 1.0f);
-				settings.Set(ClientSettingKeys.Graphics.Msaa, MsaaOption.X2);
-				settings.Set(ClientSettingKeys.Graphics.ShadowQuality, ShadowQuality.Medium);
-				settings.Set(ClientSettingKeys.Graphics.ShadowDistance, 1000f);
-				settings.Set(ClientSettingKeys.PostProcessing.Glow, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssao, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssr, false);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssil, false);
-				settings.Set(ClientSettingKeys.PostProcessing.Sdfgi, false);
-				settings.Set(ClientSettingKeys.PostProcessing.NormalMaps, true);
-				break;
-			case GraphicsPreset.High:
-				settings.Set(ClientSettingKeys.Graphics.RenderScale, 1.0f);
-				settings.Set(ClientSettingKeys.Graphics.Msaa, MsaaOption.X4);
-				settings.Set(ClientSettingKeys.Graphics.ShadowQuality, ShadowQuality.High);
-				settings.Set(ClientSettingKeys.Graphics.ShadowDistance, 1250f);
-				settings.Set(ClientSettingKeys.PostProcessing.Glow, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssao, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssr, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssil, false);
-				settings.Set(ClientSettingKeys.PostProcessing.Sdfgi, false);
-				settings.Set(ClientSettingKeys.PostProcessing.NormalMaps, true);
-				break;
-			case GraphicsPreset.Ultra:
-				settings.Set(ClientSettingKeys.Graphics.RenderScale, 1.0f);
-				settings.Set(ClientSettingKeys.Graphics.Msaa, MsaaOption.X8);
-				settings.Set(ClientSettingKeys.Graphics.ShadowQuality, ShadowQuality.Ultra);
-				settings.Set(ClientSettingKeys.Graphics.ShadowDistance, 1250f);
-				settings.Set(ClientSettingKeys.PostProcessing.Glow, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssao, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssr, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssil, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Sdfgi, false);
-				settings.Set(ClientSettingKeys.PostProcessing.NormalMaps, true);
-				break;
-			case GraphicsPreset.Photo:
-				settings.Set(ClientSettingKeys.Graphics.RenderScale, 1.0f);
-				settings.Set(ClientSettingKeys.Graphics.Msaa, MsaaOption.X8);
-				settings.Set(ClientSettingKeys.Graphics.ShadowQuality, ShadowQuality.Ultra);
-				settings.Set(ClientSettingKeys.Graphics.ShadowDistance, 1250f);
-				settings.Set(ClientSettingKeys.PostProcessing.Glow, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssao, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssr, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Ssil, true);
-				settings.Set(ClientSettingKeys.PostProcessing.Sdfgi, true);
-				settings.Set(ClientSettingKeys.PostProcessing.NormalMaps, true);
-				break;
-			case GraphicsPreset.Custom:
-			default:
-				break;
+			PT.PrintErr($"GraphicsPresetManager: Unknown preset '{preset}', no changes applied.");
+			return;
 		}
+
+		var settings = ClientSettingsService.Instance;
+		settings.Set(ClientSettingKeys.Graphics.RenderScale, data.RenderScale);
+		settings.Set(ClientSettingKeys.Graphics.Msaa, data.Msaa);
+		settings.Set(ClientSettingKeys.Graphics.ShadowQuality, data.ShadowQuality);
+		settings.Set(ClientSettingKeys.Graphics.ShadowDistance, data.ShadowDistance);
+		settings.Set(ClientSettingKeys.PostProcessing.Glow, data.Glow);
+		settings.Set(ClientSettingKeys.PostProcessing.Ssao, data.Ssao);
+		settings.Set(ClientSettingKeys.PostProcessing.Ssr, data.Ssr);
+		settings.Set(ClientSettingKeys.PostProcessing.Ssil, data.Ssil);
+		settings.Set(ClientSettingKeys.PostProcessing.Sdfgi, data.Sdfgi);
 	}
 }

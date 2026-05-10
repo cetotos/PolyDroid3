@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 namespace Polytoria.Client.Settings;
 
 public static class ClientSettingKeys
@@ -11,9 +15,7 @@ public static class ClientSettingKeys
 
 	public static class Display
 	{
-		public const string Fullscreen = "display.fullscreen";
 		public const string UiScale = "display.ui_scale";
-		public const string VSync = "display.vsync";
 	}
 
 	public static class Overlay
@@ -25,7 +27,6 @@ public static class ClientSettingKeys
 	public static class Graphics
 	{
 		public const string Preset = "graphics.preset";
-		public const string RenderingMethod = "graphics.rendering_method";
 		public const string RenderScale = "graphics.render_scale";
 		public const string Msaa = "graphics.msaa";
 		public const string ShadowQuality = "graphics.shadow_quality";

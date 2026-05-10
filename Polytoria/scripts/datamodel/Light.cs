@@ -6,6 +6,7 @@ using System;
 using Godot;
 using Polytoria.Attributes;
 using Polytoria.Client.Settings;
+using Polytoria.Shared.Settings;
 
 #if CREATOR
 using Polytoria.Creator.Spatial;

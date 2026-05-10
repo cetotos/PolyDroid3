@@ -2,11 +2,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-namespace Polytoria.Client.Settings;
+namespace Polytoria.Shared.Settings;
 
-public enum OverlayMode
+public enum SettingValueKind
 {
-	None,
-	Minimal,
-	Full
+	Bool,
+	Int,
+	Float,
+	String,
+	Enum
+}
+
+public enum SettingControlKind
+{
+	Toggle,
+	Slider,
+	Dropdown,
+	ButtonGroup
 }

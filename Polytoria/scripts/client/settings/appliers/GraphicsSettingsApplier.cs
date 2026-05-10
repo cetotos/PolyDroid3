@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 using Godot;
 using Polytoria.Datamodel;
 using Polytoria.Shared;
@@ -7,10 +11,18 @@ namespace Polytoria.Client.Settings.Appliers;
 
 public sealed partial class GraphicsSettingsApplier : Node
 {
+	private bool _postProcessingDirty;
+
 	public override void _Ready()
 	{
 		ClientSettingsService.Instance.Changed += OnChanged;
 		ApplyAll();
+	}
+
+	public override void _ExitTree()
+	{
+		ClientSettingsService.Instance.Changed -= OnChanged;
+		base._ExitTree();
 	}
 
 	private void OnChanged(SettingChangedEvent change)
@@ -21,7 +33,15 @@ public sealed partial class GraphicsSettingsApplier : Node
 		}
 		else if (change.Key.StartsWith("graphics.post_processing."))
 		{
-			ApplyPostProcessing();
+			if (!_postProcessingDirty)
+			{
+				_postProcessingDirty = true;
+				Callable.From(() =>
+				{
+					_postProcessingDirty = false;
+					ApplyPostProcessing();
+				}).CallDeferred();
+			}
 		}
 		else
 		{
