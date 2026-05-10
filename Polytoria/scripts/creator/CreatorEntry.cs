@@ -9,6 +9,7 @@ using Polytoria.Creator.Utils;
 using Polytoria.Datamodel.Creator;
 using Polytoria.Shared;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 
 namespace Polytoria.Creator;
@@ -17,6 +18,8 @@ public partial class CreatorEntry : Node
 {
 	public const int CreatorPort = 24220;
 
+	[RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)")]
+	[RequiresDynamicCode("Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)")]
 	public override async void _EnterTree()
 	{
 		Dictionary<string, string> cmdargs = Globals.ReadCmdArgs();

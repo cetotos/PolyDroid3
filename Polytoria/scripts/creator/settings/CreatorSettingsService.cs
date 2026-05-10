@@ -44,6 +44,8 @@ public sealed partial class CreatorSettingsService : SettingsServiceBase
 		Instance = this;
 	}
 
+	[RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)")]
+	[RequiresDynamicCode("Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)")]
 	public void Init()
 	{
 		MigrateFromOldFormat();
