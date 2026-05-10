@@ -936,6 +936,7 @@ public sealed partial class Player : NPC
 		Stamina = Root.PlayerDefaults.Stamina;
 		MaxStamina = Root.PlayerDefaults.MaxStamina;
 		StaminaRegen = Root.PlayerDefaults.StaminaRegen;
+		StaminaBurn = Root.PlayerDefaults.StaminaBurn;
 		JumpPower = Root.PlayerDefaults.JumpPower;
 		RespawnTime = Root.PlayerDefaults.RespawnTime;
 		UseHeadTurning = Root.PlayerDefaults.UseHeadTurning;
