@@ -7,6 +7,7 @@ using Godot;
 using Polytoria.Client;
 using Polytoria.Creator.LSP;
 using Polytoria.Creator.Managers;
+using Polytoria.Creator.Settings;
 using Polytoria.Creator.UI;
 using Polytoria.Datamodel;
 using Polytoria.Datamodel.Creator;
@@ -223,7 +224,7 @@ public partial class CreatorSession : Node, IDisposable
 
 	private void StartBackupTimer()
 	{
-		float backupInterval = CreatorSettings.Singleton.GetSetting<float>("Backup.BackupInterval")!;
+		float backupInterval = CreatorSettingsService.Instance.Get<float>(CreatorSettingKeys.Backup.BackupInterval);
 		_backupTimer.Start(backupInterval * 60f);
 	}
 
@@ -920,7 +921,7 @@ return module";
 			Directory.CreateDirectory(backupFolderPath);
 		}
 
-		int maxCount = CreatorSettings.Singleton.GetSetting<int>("Backup.MaxBackupCount")!;
+		int maxCount = CreatorSettingsService.Instance.Get<int>(CreatorSettingKeys.Backup.MaxBackupCount);
 
 		// Delete oldest folder
 		List<DirectoryInfo> backupFolders = [.. Directory.GetDirectories(backupFolderPath)

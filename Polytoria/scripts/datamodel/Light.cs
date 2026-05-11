@@ -6,8 +6,10 @@ using System;
 using Godot;
 using Polytoria.Attributes;
 using Polytoria.Client.Settings;
+using Polytoria.Shared.Settings;
 
 #if CREATOR
+using Polytoria.Creator.Settings;
 using Polytoria.Creator.Spatial;
 #endif
 using Polytoria.Shared;
@@ -110,10 +112,14 @@ public partial class Light : Dynamic
 	{
 		bool shadows = Shadows;
 
-		ClientSettingsService? settings = ClientSettingsService.Instance;
+		ISettingsContext? settings =
+#if CREATOR
+			(ISettingsContext?)CreatorSettingsService.Instance ??
+#endif
+			ClientSettingsService.Instance;
 		if (settings != null)
 		{
-			ShadowQuality shadowQuality = settings.Get<ShadowQuality>(ClientSettingKeys.Graphics.ShadowQuality);
+			ShadowQuality shadowQuality = settings.Get<ShadowQuality>(SharedSettingKeys.Graphics.ShadowQuality);
 			if (shadowQuality == ShadowQuality.Off)
 			{
 				shadows = false;
