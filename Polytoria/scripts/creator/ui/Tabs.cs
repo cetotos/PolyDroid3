@@ -98,6 +98,15 @@ public sealed partial class Tabs : TabContainer
 		{
 			container = new WorldContainer(gt.World);
 			icon = "World";
+
+			void deleted()
+			{
+				gt.World.Deleted -= deleted;
+				if (IsInstanceValid(container))
+					container.QueueFree();
+			}
+
+			gt.World.Deleted += deleted;
 		}
 		else if (other is TextEditorTab txt)
 		{

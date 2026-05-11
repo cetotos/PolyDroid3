@@ -9,7 +9,6 @@ using Polytoria.Client;
 using Polytoria.Networking;
 using Polytoria.Scripting;
 using Polytoria.Shared;
-using Polytoria.Utils;
 
 namespace Polytoria.Datamodel;
 
@@ -70,7 +69,7 @@ public partial class NPC : Physical
 	{
 		get
 		{
-			return CharacterVelocity.Flip();
+			return CharacterVelocity;
 		}
 		set
 		{
@@ -80,7 +79,7 @@ public partial class NPC : Physical
 				plr.ExternalVelocity = value;
 			}
 
-			CharacterVelocity = value.Flip();
+			CharacterVelocity = value;
 
 			OnPropertyChanged();
 		}
@@ -89,7 +88,7 @@ public partial class NPC : Physical
 	internal void ApplyInternalVelocity(Vector3 velocity)
 	{
 		UpdateVelocityInternal(velocity);
-		CharacterVelocity = velocity.Flip();
+		CharacterVelocity = velocity;
 		OnPropertyChanged(nameof(Velocity));
 	}
 
@@ -629,7 +628,7 @@ public partial class NPC : Physical
 		{
 			Vector3 velo = GetGlobalPosition().DirectionTo(walkTarget.Value with { Y = Position.Y });
 			CharacterVelocity = new(velo.X * WalkSpeed, CharacterVelocity.Y, velo.Z * WalkSpeed);
-			GDNode3D.GlobalRotationDegrees = new Vector3(Rotation.X, -Mathf.RadToDeg(Mathf.LerpAngle(Mathf.DegToRad(Rotation.Y), Mathf.Atan2(-CharacterVelocity.X, CharacterVelocity.Z), (float)(delta * BodyRotateLerp))), Rotation.Z);
+			GDNode3D.GlobalRotationDegrees = new Vector3(Rotation.X, Mathf.RadToDeg(Mathf.LerpAngle(Mathf.DegToRad(Rotation.Y), Mathf.Atan2(CharacterVelocity.X, CharacterVelocity.Z), (float)(delta * BodyRotateLerp))), Rotation.Z);
 
 			float distanceToTarget = GetGlobalPosition().DistanceTo(walkTarget.Value);
 
@@ -676,7 +675,7 @@ public partial class NPC : Physical
 		UpdateVelocityInternal(CharacterVelocity);
 		if (this is not Player)
 		{
-			CharBody3D.Velocity = Velocity.Flip();
+			CharBody3D.Velocity = Velocity;
 			CharBody3D.MoveAndSlide();
 		}
 
@@ -714,9 +713,9 @@ public partial class NPC : Physical
 	[ScriptMethod]
 	public void Move(Vector3 velo)
 	{
-		CharacterVelocity = velo.Flip();
+		CharacterVelocity = velo;
 		UpdateVelocityInternal(CharacterVelocity);
-		CharBody3D.Velocity = Velocity.Flip();
+		CharBody3D.Velocity = Velocity;
 		CharBody3D.MoveAndSlide();
 	}
 
@@ -1082,7 +1081,7 @@ public partial class NPC : Physical
 
 			_navAgent.NavigationFinished += OnNavFinished;
 		}
-		_navAgent.TargetPosition = pos.Flip();
+		_navAgent.TargetPosition = pos;
 	}
 
 	private void OnNavFinished()

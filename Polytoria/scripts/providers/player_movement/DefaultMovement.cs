@@ -1,6 +1,5 @@
 using Godot;
 using Polytoria.Datamodel;
-using Polytoria.Utils;
 
 namespace Polytoria.Providers.PlayerMovement;
 
@@ -128,11 +127,11 @@ public class DefaultMovement : IPlayerMovement
 			// Always rotate in first person
 			if (snapshot.CamLocked)
 			{
-				Target.Rotation = Target.Rotation with { Y = 180 - Mathf.RadToDeg(snapshot.CameraRotation.Y) };
+				Target.Rotation = Target.Rotation with { Y = 180 + Mathf.RadToDeg(snapshot.CameraRotation.Y) };
 			}
 
 			Vector3 pushVelocity = hasExternalVelocity
-				? externalVelocity.Flip() with { Y = 0 }
+				? externalVelocity with { Y = 0 }
 				: Vector3.Zero;
 
 			if (moveDirection != Vector3.Zero && !Target.IsClimbing)
@@ -147,7 +146,7 @@ public class DefaultMovement : IPlayerMovement
 					// Apply rotation by move direction
 					Target.Rotation = Target.Rotation with
 					{
-						Y = Mathf.RadToDeg(Mathf.LerpAngle(Mathf.DegToRad(Target.Rotation.Y), Mathf.Atan2(-Target.CharacterVelocity.X, Target.CharacterVelocity.Z), (float)(delta * NPC.BodyRotateLerp)))
+						Y = Mathf.RadToDeg(Mathf.LerpAngle(Mathf.DegToRad(Target.Rotation.Y), Mathf.Atan2(Target.CharacterVelocity.X, Target.CharacterVelocity.Z), (float)(delta * NPC.BodyRotateLerp)))
 					};
 				}
 
@@ -214,7 +213,7 @@ public class DefaultMovement : IPlayerMovement
 			);
 		}
 
-		Target.ApplyInternalVelocity(Target.CharacterVelocity.Flip());
+		Target.ApplyInternalVelocity(Target.CharacterVelocity);
 		Target.CharBody3D.Velocity = Target.CharacterVelocity;
 		Target.CharBody3D.MoveAndSlide();
 
