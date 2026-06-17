@@ -5,7 +5,7 @@ on:
   push:
 
 env:
-  GODOT_VERSION: "4.7-beta4"
+  GODOT_VERSION: "4.7.0-beta.4"
   DOTNET_VERSION: "10.0.x"
   ANDROID_NDK_VERSION: "r29"
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
