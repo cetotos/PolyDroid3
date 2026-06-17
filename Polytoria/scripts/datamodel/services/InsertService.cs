@@ -124,11 +124,12 @@ public sealed partial class InsertService : Instance
 #endif
 
 	[ScriptMethod]
-	public async Task<Accessory?> AccessoryAsync(int id)
+	public async Task<Accessory?> AccessoryAsync(int id, string? directMeshUrl = null)
 	{
 		APIStoreItem storeItem = await GetStoreItemCachedAsync(id);
 
 		PTMeshAsset meshAsset = New<PTMeshAsset>();
+		meshAsset.DirectURL = directMeshUrl ?? "";
 		meshAsset.AssetID = (uint)id;
 
 		Accessory accessory = New<Accessory>(this);
@@ -170,11 +171,12 @@ public sealed partial class InsertService : Instance
 	}
 
 	[ScriptMethod]
-	public async Task<Tool?> ToolAsync(int id)
+	public async Task<Tool?> ToolAsync(int id, string? directMeshUrl = null)
 	{
 		APIStoreItem storeItem = await GetStoreItemCachedAsync(id);
 
 		PTMeshAsset meshAsset = New<PTMeshAsset>();
+		meshAsset.DirectURL = directMeshUrl ?? "";
 		meshAsset.AssetID = (uint)id;
 
 		PTImageAsset icon = New<PTImageAsset>();

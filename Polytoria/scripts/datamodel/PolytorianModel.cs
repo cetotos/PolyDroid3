@@ -22,6 +22,12 @@ public sealed partial class PolytorianModel : CharacterModel
 {
 	private const double NetLookBlendUpdateInterval = 0.1;
 	private double _lastNetUpdateTime = 0.0;
+	private const double NetHeadUpdateInterval = 1.0 / 60.0;
+	private double _lastNetHeadUpdateTime = 0.0;
+	private bool _xrHeadHooked;
+	private Polytoria.Shared.XRArmIK? _remoteArmIK;
+	private Polytoria.Shared.XRCrouchIK? _crouchIK;
+	private Polytoria.Shared.XRHeadIK? _headIK;
 
 	private static readonly BoxShape3D _collisionBox = new() { Size = new(2f, 5.8f, 1f) };
 	internal Node3D? CollisionPivot;
@@ -61,6 +67,7 @@ public sealed partial class PolytorianModel : CharacterModel
 	private readonly ShaderMaterial _headMat = new() { Shader = _limbShader };
 	private readonly ShaderMaterial _limbMat = new() { Shader = _limbShader };
 	private readonly ShaderMaterial _transparentLimbMat = new() { Shader = _transparentLimbShader };
+	private readonly Dictionary<GeometryInstance3D, (ShaderMaterial Mat, ShaderMaterial Source)> _limbMats = [];
 	private PhysicalBoneSimulator3D _ragdollBoneSim = null!;
 	private PhysicalBoneSimulator3D? _lastPhysicalBoneSim = null!;
 	private readonly Dictionary<string, float> _blendTargets = [];
@@ -84,7 +91,7 @@ public sealed partial class PolytorianModel : CharacterModel
 		set
 		{
 			_headMat.Shader = (value.A == 1) ? _limbShader : _transparentLimbShader;
-			HeadMeshInstance.SetInstanceShaderParameter(_albedoParam, value);
+			ApplyAlbedo(HeadMeshInstance, _headMat, value);
 			OnPropertyChanged();
 		}
 	}
@@ -171,7 +178,7 @@ public sealed partial class PolytorianModel : CharacterModel
 			_faceImage = value;
 
 			// Clear current face
-			_headMat.SetShaderParameter(_albedoTexParam, new());
+			SetLimbTexture(_headMat, new());
 			if (_faceImage != null)
 			{
 				_faceOverrided = true;
@@ -192,7 +199,7 @@ public sealed partial class PolytorianModel : CharacterModel
 			else
 			{
 				// Set to default face
-				_headMat.SetShaderParameter(_albedoTexParam, _defaultFace);
+				SetLimbTexture(_headMat, _defaultFace);
 			}
 			OnPropertyChanged();
 		}
@@ -261,12 +268,12 @@ public sealed partial class PolytorianModel : CharacterModel
 
 		Pivot.Scale = NodeSize;
 
-		HeadMeshInstance.MaterialOverride = _headMat;
-		TorsoMeshInstance.MaterialOverride = _limbMat;
-		LeftArmMeshInstance.MaterialOverride = _limbMat;
-		RightArmMeshInstance.MaterialOverride = _limbMat;
-		LeftLegMeshInstance.MaterialOverride = _limbMat;
-		RightLegMeshInstance.MaterialOverride = _limbMat;
+		ApplyAlbedo(HeadMeshInstance, _headMat, _defaultBodyColor);
+		ApplyAlbedo(TorsoMeshInstance, _limbMat, _defaultBodyColor);
+		ApplyAlbedo(LeftArmMeshInstance, _limbMat, _defaultBodyColor);
+		ApplyAlbedo(RightArmMeshInstance, _limbMat, _defaultBodyColor);
+		ApplyAlbedo(LeftLegMeshInstance, _limbMat, _defaultBodyColor);
+		ApplyAlbedo(RightLegMeshInstance, _limbMat, _defaultBodyColor);
 
 		AnimTree = GDNode.GetNode<AnimationTree>("AnimationTree");
 		AnimTree.Active = true;
@@ -284,6 +291,11 @@ public sealed partial class PolytorianModel : CharacterModel
 		_headMat.Dispose();
 		_limbMat.Dispose();
 		_transparentLimbMat.Dispose();
+		foreach ((ShaderMaterial mat, _) in _limbMats.Values)
+		{
+			mat.Dispose();
+		}
+		_limbMats.Clear();
 
 		base.PreDelete();
 	}
@@ -332,6 +344,8 @@ public sealed partial class PolytorianModel : CharacterModel
 
 			CollisionPivot = null;
 			CollisionShape = null;
+			_crouchBox = null;
+			_appliedCrouch = 0f;
 		}
 		base.ExitTree();
 	}
@@ -390,6 +404,11 @@ public sealed partial class PolytorianModel : CharacterModel
 	public override void Process(double delta)
 	{
 		base.Process(delta);
+
+		if (_hasPose && _localArmIK == null)
+		{
+			ApplyNetPose();
+		}
 
 		if (_updateClothDirty)
 		{
@@ -450,13 +469,13 @@ public sealed partial class PolytorianModel : CharacterModel
 			}
 			composite = ImageTexture.CreateFromImage(result);
 		}
-		_limbMat.SetShaderParameter(_albedoTexParam, composite);
-		_transparentLimbMat.SetShaderParameter(_albedoTexParam, composite);
+		SetLimbTexture(_limbMat, composite);
+		SetLimbTexture(_transparentLimbMat, composite);
 	}
 
 	private void OnFaceLoaded(Resource tex)
 	{
-		_headMat.SetShaderParameter(_albedoTexParam, (Texture2D)tex);
+		SetLimbTexture(_headMat, (Texture2D)tex);
 		if (!_faceLoaded)
 		{
 			_faceLoaded = true;
@@ -650,11 +669,85 @@ public sealed partial class PolytorianModel : CharacterModel
 		AnimTree.Set("parameters/TimeScale/scale", speedValue);
 	}
 
+	private bool _xrArmsHooked;
+	private Polytoria.Shared.XRArmIK? _localArmIK;
+
 	public override void ApplyCameraModifier(Camera camera)
 	{
+		if (!_xrArmsHooked && Polytoria.Shared.XRBootstrap.IsActive
+			&& Skeleton != null
+			&& Polytoria.Shared.XRControlBridge.LeftController != null
+			&& Polytoria.Shared.XRControlBridge.RightController != null)
+		{
+			_xrArmsHooked = true;
+			_localArmIK = new Polytoria.Shared.XRArmIK(
+				Skeleton,
+				Polytoria.Shared.XRControlBridge.LeftController,
+				Polytoria.Shared.XRControlBridge.RightController);
+			Skeleton.AddChild(_localArmIK);
+		}
+
 		Camera3D cam3D = camera.Camera3D;
 		Transform3D camTransform = cam3D.GlobalTransform;
 		Transform3D charTransform = GetGlobalTransform();
+
+		if (Polytoria.Shared.XRBootstrap.IsActive && Skeleton != null)
+		{
+			if (!_xrHeadHooked)
+			{
+				_xrHeadHooked = true;
+				EnsureHeadIK();
+			}
+			EnsureCrouchIK();
+			if (_crouchIK != null)
+			{
+				_crouchIK.CrouchWorld = Polytoria.Shared.XRBootstrap.CrouchWorld;
+				_crouchIK.Moving = CurrentState is CharacterModelStateEnum.Walking or CharacterModelStateEnum.Running;
+
+				Vector3 headWorld = camTransform.Origin;
+				Vector3 fwdFlat = -camTransform.Basis.Z;
+				fwdFlat.Y = 0;
+				if (fwdFlat.LengthSquared() > 1e-4f)
+				{
+					headWorld -= fwdFlat.Normalized() * (Polytoria.Shared.XRBootstrap.EyeForwardOffsetMeters * (float)XRServer.WorldScale);
+				}
+				_crouchIK.HeadTargetLocal = Skeleton.GlobalTransform.AffineInverse() * headWorld;
+			}
+			Polytoria.Shared.XRBootstrap.MinCrouchWorld = ApplyBodyCrouch(Polytoria.Shared.XRBootstrap.CrouchWorld);
+
+			Basis camBasis = camTransform.Basis;
+			Basis skelBasisInv = Skeleton.GlobalTransform.Basis.Inverse();
+			Basis headLocalBasis = (skelBasisInv * camBasis * Polytoria.Shared.XRBootstrap.BodyYawCorrection).Orthonormalized();
+
+			Vector3 euler = headLocalBasis.GetEuler();
+			float pitchLimit = Mathf.DegToRad(70f);
+			float yawLimit = Mathf.DegToRad(110f);
+			float rollLimit = Mathf.DegToRad(45f);
+			euler.X = Mathf.Clamp(euler.X, -pitchLimit, pitchLimit);
+			euler.Y = Mathf.Clamp(euler.Y, -yawLimit, yawLimit);
+			euler.Z = Mathf.Clamp(euler.Z, -rollLimit, rollLimit);
+			Quaternion clampedQ = Basis.FromEuler(euler).GetRotationQuaternion();
+
+			if (_headIK != null) _headIK.TargetRotationLocal = clampedQ;
+
+			double now = Time.GetTicksMsec() / 1000.0;
+			if (now >= _lastNetHeadUpdateTime + NetHeadUpdateInterval)
+			{
+				_lastNetHeadUpdateTime = now;
+				Transform3D lt = _localArmIK?.LastLeftTargetLocal ?? Transform3D.Identity;
+				Transform3D rt = _localArmIK?.LastRightTargetLocal ?? Transform3D.Identity;
+				Quaternion lq = lt.Basis.GetRotationQuaternion();
+				Quaternion rq = rt.Basis.GetRotationQuaternion();
+				Vector3 torsoOffset = _crouchIK?.LastTorsoOffset ?? Vector3.Zero;
+				Rpc(nameof(NetRecvPose),
+					clampedQ.X, clampedQ.Y, clampedQ.Z, clampedQ.W,
+					lt.Origin.X, lt.Origin.Y, lt.Origin.Z, lq.X, lq.Y, lq.Z, lq.W,
+					rt.Origin.X, rt.Origin.Y, rt.Origin.Z, rq.X, rq.Y, rq.Z, rq.W,
+					Polytoria.Shared.XRBootstrap.CrouchWorld,
+					torsoOffset.X, torsoOffset.Y, torsoOffset.Z);
+			}
+			return;
+		}
 
 		Vector3 camForward = -camTransform.Basis.Z.Normalized();
 
@@ -683,6 +776,222 @@ public sealed partial class PolytorianModel : CharacterModel
 		}
 	}
 
+	private void EnsureHeadIK()
+	{
+		if (_headIK != null || Skeleton == null) return;
+		_headIK = new Polytoria.Shared.XRHeadIK(Skeleton);
+		Skeleton.AddChild(_headIK);
+	}
+
+	private void EnsureCrouchIK()
+	{
+		if (_crouchIK != null || Skeleton == null) return;
+		_crouchIK = new Polytoria.Shared.XRCrouchIK(Skeleton);
+		Skeleton.AddChild(_crouchIK);
+		Skeleton.MoveChild(_crouchIK, 0);
+	}
+
+	private const float HandBodyFollowRate = 50f;
+	private const float HandBodySnapDistance = 3f;
+	private const float HandBodyMaxExtrapolation = 0.08f;
+
+	private AnimatableBody3D? _lHandBody;
+	private AnimatableBody3D? _rHandBody;
+	private Vector3 _lHandTarget;
+	private Vector3 _rHandTarget;
+	private Vector3 _lHandPrev;
+	private Vector3 _rHandPrev;
+	private double _handTargetTime;
+	private float _handTargetDt = 1f / 30f;
+
+	private void UpdateServerHandBodies(Vector3 leftLocal, Vector3 rightLocal)
+	{
+		if (Skeleton == null) return;
+		Transform3D skel = Skeleton.GlobalTransform;
+		if (_lHandBody == null || _rHandBody == null)
+		{
+			_lHandBody = CreateHandBody();
+			_rHandBody = CreateHandBody();
+			_lHandBody.GlobalPosition = skel * leftLocal;
+			_rHandBody.GlobalPosition = skel * rightLocal;
+			SetPhysicsProcess(true);
+		}
+		double now = Time.GetTicksMsec() / 1000.0;
+		_handTargetDt = Mathf.Clamp((float)(now - _handTargetTime), 0.01f, 0.2f);
+		_handTargetTime = now;
+		_lHandPrev = _lHandTarget;
+		_rHandPrev = _rHandTarget;
+		_lHandTarget = skel * leftLocal;
+		_rHandTarget = skel * rightLocal;
+	}
+
+	public override void PhysicsProcess(double delta)
+	{
+		if (_lHandBody != null && _rHandBody != null)
+		{
+			float ahead = Mathf.Min((float)(Time.GetTicksMsec() / 1000.0 - _handTargetTime), HandBodyMaxExtrapolation) / _handTargetDt;
+			MoveHandBody(_lHandBody, _lHandTarget + (_lHandTarget - _lHandPrev) * ahead, delta);
+			MoveHandBody(_rHandBody, _rHandTarget + (_rHandTarget - _rHandPrev) * ahead, delta);
+		}
+		base.PhysicsProcess(delta);
+	}
+
+	private static void MoveHandBody(AnimatableBody3D body, Vector3 target, double delta)
+	{
+		Vector3 pos = body.GlobalPosition;
+		if (pos.DistanceSquaredTo(target) > HandBodySnapDistance * HandBodySnapDistance)
+		{
+			body.GlobalPosition = target;
+			return;
+		}
+		body.GlobalPosition = pos.Lerp(target, 1f - Mathf.Exp(-HandBodyFollowRate * (float)delta));
+	}
+
+	private AnimatableBody3D CreateHandBody()
+	{
+		var body = new AnimatableBody3D
+		{
+			SyncToPhysics = true,
+			CollisionLayer = 1,
+			CollisionMask = 0,
+			TopLevel = true,
+		};
+		body.AddChild(new CollisionShape3D { Shape = new SphereShape3D { Radius = 0.28f } });
+		Skeleton!.AddChild(body);
+		if (Parent is Physical phy && phy.GDNode is PhysicsBody3D playerBody)
+		{
+			body.AddCollisionExceptionWith(playerBody);
+		}
+		return body;
+	}
+
+	private BoxShape3D? _crouchBox;
+	private float _appliedCrouch;
+
+	private float ApplyBodyCrouch(float crouchWorld)
+	{
+		float scaleY = Mathf.Max(NodeSize.Y, 0.01f);
+		if (CollisionShape == null) return _appliedCrouch * scaleY;
+		float crouch = Mathf.Clamp(crouchWorld / scaleY, 0f, _collisionBox.Size.Y * 0.5f);
+		if (Mathf.Abs(crouch - _appliedCrouch) < 0.01f) return _appliedCrouch * scaleY;
+		if (crouch < _appliedCrouch && !HasHeadroom(crouch)) return _appliedCrouch * scaleY;
+
+		if (_crouchBox == null)
+		{
+			_crouchBox = (BoxShape3D)_collisionBox.Duplicate();
+			CollisionShape.Shape = _crouchBox;
+		}
+		_appliedCrouch = crouch;
+		_crouchBox.Size = _collisionBox.Size with { Y = _collisionBox.Size.Y - crouch };
+		Physical.SetRemoteLinkOffset(CollisionShape, new(0, 3f - 0.1f - crouch * 0.5f, 0));
+		return _appliedCrouch * scaleY;
+	}
+
+	private BoxShape3D? _headroomProbe;
+
+	private bool HasHeadroom(float targetCrouch)
+	{
+		float growth = _appliedCrouch - targetCrouch;
+		if (growth <= 0f || CollisionShape == null) return true;
+		PhysicsDirectSpaceState3D? space = CollisionShape.GetWorld3D()?.DirectSpaceState;
+		if (space == null) return true;
+		if (Parent is not Physical phy || phy.GDNode is not PhysicsBody3D body) return true;
+
+		_headroomProbe ??= new BoxShape3D();
+		_headroomProbe.Size = new Vector3(_collisionBox.Size.X * 0.9f, growth, _collisionBox.Size.Z * 0.9f);
+
+		float currentHalf = (_collisionBox.Size.Y - _appliedCrouch) * 0.5f;
+		Transform3D xf = CollisionShape.GlobalTransform;
+		xf.Origin += xf.Basis * new Vector3(0f, currentHalf + growth * 0.5f, 0f);
+
+		var query = new PhysicsShapeQueryParameters3D
+		{
+			Shape = _headroomProbe,
+			Transform = xf,
+			CollisionMask = body.CollisionMask,
+			Exclude = [body.GetRid()],
+		};
+		return space.IntersectShape(query, 1).Count == 0;
+	}
+
+	private const double PoseInterpDelay = 0.05;
+
+	private struct NetPose
+	{
+		public double T;
+		public Quaternion Head;
+		public Transform3D Left;
+		public Transform3D Right;
+		public float Crouch;
+		public Vector3 Torso;
+	}
+
+	private NetPose _poseA;
+	private NetPose _poseB;
+	private bool _hasPose;
+
+	[NetRpc(AuthorityMode.Authority, TransferMode = TransferMode.UnreliableOrdered)]
+	private void NetRecvPose(
+		float hx, float hy, float hz, float hw,
+		float lx, float ly, float lz, float lqx, float lqy, float lqz, float lqw,
+		float rx, float ry, float rz, float rqx, float rqy, float rqz, float rqw,
+		float crouch, float tox, float toy, float toz)
+	{
+		if (_localArmIK != null) return;
+
+		NetPose pose = new()
+		{
+			T = Time.GetTicksMsec() / 1000.0,
+			Head = new Quaternion(hx, hy, hz, hw).Normalized(),
+			Left = new Transform3D(new Basis(new Quaternion(lqx, lqy, lqz, lqw).Normalized()), new Vector3(lx, ly, lz)),
+			Right = new Transform3D(new Basis(new Quaternion(rqx, rqy, rqz, rqw).Normalized()), new Vector3(rx, ry, rz)),
+			Crouch = crouch,
+			Torso = new Vector3(tox, toy, toz),
+		};
+		_poseA = _hasPose ? _poseB : pose;
+		_poseB = pose;
+		_hasPose = true;
+
+		if (Root.Network.IsServer)
+		{
+			UpdateServerHandBodies(pose.Left.Origin, pose.Right.Origin);
+		}
+	}
+
+	private void ApplyNetPose()
+	{
+		if (Skeleton == null) return;
+
+		float t = 1f;
+		double span = _poseB.T - _poseA.T;
+		if (span > 0.0005)
+		{
+			double renderTime = Time.GetTicksMsec() / 1000.0 - PoseInterpDelay;
+			t = Mathf.Clamp((float)((renderTime - _poseA.T) / span), 0f, 1f);
+		}
+
+		EnsureHeadIK();
+		if (_headIK != null) _headIK.TargetRotationLocal = _poseA.Head.Slerp(_poseB.Head, t);
+
+		if (_remoteArmIK == null)
+		{
+			_remoteArmIK = new Polytoria.Shared.XRArmIK(Skeleton, null, null);
+			Skeleton.AddChild(_remoteArmIK);
+		}
+		_remoteArmIK.OverrideLeftTargetLocal = _poseA.Left.InterpolateWith(_poseB.Left, t);
+		_remoteArmIK.OverrideRightTargetLocal = _poseA.Right.InterpolateWith(_poseB.Right, t);
+
+		float crouch = Mathf.Lerp(_poseA.Crouch, _poseB.Crouch, t);
+		EnsureCrouchIK();
+		if (_crouchIK != null)
+		{
+			_crouchIK.CrouchWorld = crouch;
+			_crouchIK.Moving = CurrentState is CharacterModelStateEnum.Walking or CharacterModelStateEnum.Running;
+			_crouchIK.OverrideTorsoOffset = _poseA.Torso.Lerp(_poseB.Torso, t);
+		}
+		ApplyBodyCrouch(crouch);
+	}
+
 	[NetRpc(AuthorityMode.Authority, TransferMode = TransferMode.UnreliableOrdered)]
 	private void NetRecvLookBlend(float lookYBlend, float lookXBlend)
 	{
@@ -694,7 +1003,20 @@ public sealed partial class PolytorianModel : CharacterModel
 	public void LoadAppearance(int userID, bool loadTool = true)
 	{
 		ClearAppearance();
-		_ = InternalLoadAppearance(userID, loadTool);
+		_ = SafeLoadAppearance(userID, loadTool);
+	}
+
+	private async Task SafeLoadAppearance(int userID, bool loadTool)
+	{
+		try
+		{
+			await InternalLoadAppearance(userID, loadTool);
+		}
+		catch (OperationCanceledException) { }
+		catch (Exception ex)
+		{
+			PT.PrintErr("LoadAppearance failed for userID=", userID, ": ", ex);
+		}
 	}
 
 	[ScriptMethod]
@@ -721,11 +1043,46 @@ public sealed partial class PolytorianModel : CharacterModel
 
 	private void MeshSetAlbedo(GeometryInstance3D mesh, Color albedo)
 	{
-		mesh.MaterialOverride = (albedo.A == 1) ? _limbMat : _transparentLimbMat;
-		mesh.SetInstanceShaderParameter(_albedoParam, albedo);
+		ShaderMaterial source = (albedo.A == 1) ? _limbMat : _transparentLimbMat;
+		ApplyAlbedo(mesh, source, albedo);
 	}
 
-	private static Color MeshGetAlbedo(GeometryInstance3D mesh) => (Color)mesh.GetInstanceShaderParameter(_albedoParam);
+	private Color MeshGetAlbedo(GeometryInstance3D mesh)
+	{
+		return _limbMats.TryGetValue(mesh, out (ShaderMaterial Mat, ShaderMaterial Source) entry)
+			? (Color)entry.Mat.GetShaderParameter(_albedoParam)
+			: _defaultBodyColor;
+	}
+
+	private void ApplyAlbedo(GeometryInstance3D mesh, ShaderMaterial source, Color albedo)
+	{
+		if (!_limbMats.TryGetValue(mesh, out (ShaderMaterial Mat, ShaderMaterial Source) entry))
+		{
+			entry = (new ShaderMaterial(), source);
+		}
+		else
+		{
+			entry.Source = source;
+		}
+
+		entry.Mat.Shader = source.Shader;
+		entry.Mat.SetShaderParameter(_albedoTexParam, source.GetShaderParameter(_albedoTexParam));
+		entry.Mat.SetShaderParameter(_albedoParam, albedo);
+		_limbMats[mesh] = entry;
+		mesh.MaterialOverride = entry.Mat;
+	}
+
+	private void SetLimbTexture(ShaderMaterial source, Variant texture)
+	{
+		source.SetShaderParameter(_albedoTexParam, texture);
+		foreach ((ShaderMaterial mat, ShaderMaterial src) in _limbMats.Values)
+		{
+			if (ReferenceEquals(src, source))
+			{
+				mat.SetShaderParameter(_albedoTexParam, texture);
+			}
+		}
+	}
 
 	internal async Task<AvatarLoadResponse> InternalLoadAppearance(int userID, bool loadTool = false, bool loadToolNpc = false)
 	{
@@ -734,7 +1091,7 @@ public sealed partial class PolytorianModel : CharacterModel
 		// Prevent reloading
 		int myCount = _loadAppearanceCount;
 
-		APIAvatarResponse avatarData = await PolyAPI.GetUserAvatarFromID(userID);
+		APIAvatarResponse avatarData = await FetchAvatar(userID);
 		if (myCount != _loadAppearanceCount) throw new OperationCanceledException("The avatar is cancelled");
 
 		if (IsDeleted)
@@ -751,12 +1108,14 @@ public sealed partial class PolytorianModel : CharacterModel
 		RightLegColor = Color.FromString(avatarData.Colors.RightLeg, _defaultBodyColor);
 
 		bool hasTool = false;
+		List<Task> asyncLoads = [];
 
 		foreach (APIAvatarAsset asset in avatarData.Assets)
 		{
 			if (asset.Type == "clothing")
 			{
 				PTImageAsset txt = New<PTImageAsset>();
+				txt.DirectURL = asset.Path ?? "";
 				txt.ImageID = (uint)asset.ID;
 				Clothing c = New<Clothing>();
 				c.Name = asset.Name;
@@ -767,6 +1126,7 @@ public sealed partial class PolytorianModel : CharacterModel
 			{
 				if (_faceOverrided) continue;
 				PTImageAsset face = New<PTImageAsset>();
+				face.DirectURL = asset.Path ?? "";
 				face.ImageID = (uint)asset.ID;
 				FaceImage = face;
 			}
@@ -774,74 +1134,104 @@ public sealed partial class PolytorianModel : CharacterModel
 			{
 				if (_bodyOverrided) continue;
 				var body = New<PTMeshAsset>();
+				body.DirectURL = asset.Path ?? "";
 				body.AssetID = (uint)asset.ID;
 				BodyMesh = body;
 			}
 			else if (asset.Type == "hat")
 			{
-				try
-				{
-					Accessory? accessory = await Root.Insert.AccessoryAsync(asset.ID);
-					if (myCount != _loadAppearanceCount) { accessory?.Delete(); throw new OperationCanceledException("The avatar is cancelled"); }
-					if (IsDeleted)
-					{
-						accessory?.Delete();
-						throw new OperationCanceledException("The avatar is deleted");
-					}
-					accessory?.Parent = this;
-				}
-				catch (Exception ex)
-				{
-					PT.PrintErr(ex);
-				}
+				asyncLoads.Add(LoadHatAsync(asset, myCount));
 			}
 			else if (asset.Type == "tool")
 			{
 				if (Parent is Player plr && loadTool)
 				{
 					hasTool = true;
-					try
-					{
-						Tool? tool = await Root.Insert.ToolAsync(asset.ID);
-						if (myCount != _loadAppearanceCount) { tool?.Delete(); throw new OperationCanceledException("The avatar is cancelled"); }
-						if (IsDeleted)
-						{
-							tool?.Delete();
-							throw new OperationCanceledException("The avatar is deleted");
-						}
-						tool?.Parent = plr.Inventory;
-					}
-					catch (Exception ex)
-					{
-						PT.PrintErr(ex);
-					}
+					asyncLoads.Add(LoadToolForPlayerAsync(asset, plr, myCount));
 				}
 				else if (Parent is NPC npc && loadToolNpc)
 				{
 					hasTool = true;
-					try
-					{
-						Tool? tool = await Root.Insert.ToolAsync(asset.ID);
-						if (myCount != _loadAppearanceCount) { tool?.Delete(); throw new OperationCanceledException("The avatar is cancelled"); }
-						if (IsDeleted)
-						{
-							tool?.Delete();
-							throw new OperationCanceledException("The avatar is deleted");
-						}
-						if (tool != null)
-							npc.EquipTool(tool);
-					}
-					catch (Exception ex)
-					{
-						PT.PrintErr(ex);
-					}
+					asyncLoads.Add(LoadToolForNpcAsync(asset, npc, myCount));
 				}
 			}
+		}
+
+		if (asyncLoads.Count > 0)
+		{
+			await Task.WhenAll(asyncLoads);
 		}
 
 		AssetLoadCheckout();
 
 		return new() { HasTool = hasTool };
+	}
+
+	private static async Task<APIAvatarResponse> FetchAvatar(int userID)
+	{
+		const int MaxAttempts = 3;
+		Exception? lastError = null;
+		for (int attempt = 0; attempt < MaxAttempts; attempt++)
+		{
+			try
+			{
+				return await PolyAPI.GetUserAvatarFromID(userID);
+			}
+			catch (System.Net.Http.HttpRequestException ex)
+			{
+				lastError = ex;
+				if (attempt < MaxAttempts - 1)
+				{
+					await Task.Delay(500 * (1 << attempt));
+				}
+			}
+		}
+		throw lastError ?? new System.Net.Http.HttpRequestException("avatar fetch failed");
+	}
+
+	private async Task LoadHatAsync(APIAvatarAsset asset, int myCount)
+	{
+		try
+		{
+			Accessory? accessory = await Root.Insert.AccessoryAsync(asset.ID, asset.Path);
+			if (myCount != _loadAppearanceCount) { accessory?.Delete(); return; }
+			if (IsDeleted) { accessory?.Delete(); return; }
+			accessory?.Parent = this;
+		}
+		catch (Exception ex)
+		{
+			PT.PrintErr(ex);
+		}
+	}
+
+	private async Task LoadToolForPlayerAsync(APIAvatarAsset asset, Player plr, int myCount)
+	{
+		try
+		{
+			Tool? tool = await Root.Insert.ToolAsync(asset.ID, asset.Path);
+			if (myCount != _loadAppearanceCount) { tool?.Delete(); return; }
+			if (IsDeleted) { tool?.Delete(); return; }
+			tool?.Parent = plr.Inventory;
+		}
+		catch (Exception ex)
+		{
+			PT.PrintErr(ex);
+		}
+	}
+
+	private async Task LoadToolForNpcAsync(APIAvatarAsset asset, NPC npc, int myCount)
+	{
+		try
+		{
+			Tool? tool = await Root.Insert.ToolAsync(asset.ID, asset.Path);
+			if (myCount != _loadAppearanceCount) { tool?.Delete(); return; }
+			if (IsDeleted) { tool?.Delete(); return; }
+			if (tool != null) npc.EquipTool(tool);
+		}
+		catch (Exception ex)
+		{
+			PT.PrintErr(ex);
+		}
 	}
 
 	internal async Task WaitForAppearanceLoad()

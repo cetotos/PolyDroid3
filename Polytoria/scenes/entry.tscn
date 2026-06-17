@@ -4,3 +4,4 @@
 
 [node name="AppEntry" type="Node" unique_id=1181157848]
 script = ExtResource("1_ycj4g")
+metadata/_edit_vertical_guides_ = [-126.0]

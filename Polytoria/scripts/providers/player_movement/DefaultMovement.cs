@@ -6,6 +6,8 @@ namespace Polytoria.Providers.PlayerMovement;
 
 public class DefaultMovement : IPlayerMovement
 {
+	private const float VRClimbMaxSpeedMeters = 7f;
+
 	public Player Target { get; set; } = null!;
 
 	public World Root { get; set; } = null!;
@@ -20,7 +22,7 @@ public class DefaultMovement : IPlayerMovement
 		bool sprint = false;
 		bool camLocked = false;
 
-		if (cam != null && Root.Input.IsGameFocused && Target.CanMove && !Target.IsDead)
+		if (cam != null && (Root.Input.IsGameFocused || Polytoria.Shared.XRBootstrap.IsActive) && Target.CanMove && !Target.IsDead)
 		{
 			Vector3 facingRot = cam.Camera3D.GlobalRotation;
 			camRotation = facingRot;
@@ -79,8 +81,25 @@ public class DefaultMovement : IPlayerMovement
 			Vector3 moveDirection = snapshot.MoveDirection;
 			float forwardInput = snapshot.ForwardInput;
 
+			bool vrClimb = false;
+			if (Polytoria.Shared.XRBootstrap.IsActive
+				&& Polytoria.Shared.XRClimbState.TryGetPull(out Vector3 climbAnchor, out Vector3 climbHand))
+			{
+				Target.EndClimb();
+				Target.JustFinishedClimbing = false;
+				float ws = (float)XRServer.WorldScale;
+				if (ws <= 0f) ws = 1f;
+				Vector3 pull = ((climbAnchor - climbHand) / (float)delta).LimitLength(VRClimbMaxSpeedMeters * ws);
+				pull.X += moveDirection.X * gdWalkSpeed;
+				pull.Z += moveDirection.Z * gdWalkSpeed;
+				Target.CharacterVelocity = pull;
+				finalState = CharacterModel.CharacterModelStateEnum.Climbing;
+				Target.Character?.SetAnimSpeed(Target.CharacterVelocity.Y / 8);
+				vrClimb = true;
+			}
+
 			// Handle jump
-			if (snapshot.Jump)
+			if (snapshot.Jump && !vrClimb)
 			{
 				Target.Jump();
 			}
@@ -125,17 +144,30 @@ public class DefaultMovement : IPlayerMovement
 				Target.CharacterVelocity.Y = 0;
 			}
 
-			// Always rotate in first person
 			if (snapshot.CamLocked)
 			{
-				Target.Rotation = Target.Rotation with { Y = 180 + Mathf.RadToDeg(snapshot.CameraRotation.Y) };
+				if (Polytoria.Shared.XRBootstrap.IsActive)
+				{
+					const float HeadYawDeadZoneDeg = 45f;
+					float targetY = 180f + Mathf.RadToDeg(snapshot.CameraRotation.Y);
+					float yawDelta = Mathf.Wrap(targetY - Target.Rotation.Y, -180f, 180f);
+					if (Mathf.Abs(yawDelta) > HeadYawDeadZoneDeg)
+					{
+						float excess = yawDelta - Mathf.Sign(yawDelta) * HeadYawDeadZoneDeg;
+						Target.Rotation = Target.Rotation with { Y = Target.Rotation.Y + excess };
+					}
+				}
+				else
+				{
+					Target.Rotation = Target.Rotation with { Y = 180 + Mathf.RadToDeg(snapshot.CameraRotation.Y) };
+				}
 			}
 
 			Vector3 pushVelocity = hasExternalVelocity
 				? externalVelocity with { Y = 0 }
 				: Vector3.Zero;
 
-			if (moveDirection != Vector3.Zero && !Target.IsClimbing)
+			if (moveDirection != Vector3.Zero && !Target.IsClimbing && !vrClimb)
 			{
 				Target.IsMoving = true;
 
@@ -164,7 +196,7 @@ public class DefaultMovement : IPlayerMovement
 					Target.Character?.SetAnimSpeed(gdWalkSpeed / 8 * animMoveAmount);
 				}
 			}
-			else if (!Target.IsClimbing)
+			else if (!Target.IsClimbing && !vrClimb)
 			{
 				Target.IsMoving = false;
 
@@ -182,7 +214,7 @@ public class DefaultMovement : IPlayerMovement
 				Target.Character?.SetAnimSpeed(1);
 			}
 
-			if (!isOnFloor && !Target.IsClimbing)
+			if (!isOnFloor && !Target.IsClimbing && !vrClimb)
 			{
 				Target.Character?.SetAnimSpeed(1);
 				finalState = CharacterModel.CharacterModelStateEnum.Jumping;

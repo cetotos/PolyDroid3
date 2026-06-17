@@ -27,6 +27,14 @@ public partial class ExplorerTree : Tree
 		base._Ready();
 	}
 
+	private const float TouchLongPressSec = 0.45f;
+	private const float TouchMoveCancelPx = 16f;
+	private int _touchIdx = -1;
+	private Vector2 _touchStartLocal;
+	private double _touchStartTime;
+	private TreeItem? _touchItem;
+	private bool _touchFired;
+
 	public override void _Process(double delta)
 	{
 		if (ScrollToTarget != null)
@@ -37,53 +45,114 @@ public partial class ExplorerTree : Tree
 			}
 			ScrollToTarget = null;
 		}
+
+		if (_touchIdx != -1 && !_touchFired && _touchItem != null)
+		{
+			double elapsed = Time.GetTicksMsec() / 1000.0 - _touchStartTime;
+			if (elapsed >= TouchLongPressSec)
+			{
+				_touchFired = true;
+				TreeItem item = _touchItem;
+				Vector2 localPos = _touchStartLocal;
+				_touchIdx = -1;
+				_touchItem = null;
+				OpenContextMenuFor(item, localPos);
+			}
+		}
+
 		base._Process(delta);
 	}
 
-	/// <summary>
-	/// Basically scroll to item but wait for next frame
-	/// </summary>
-	/// <param name="target"></param>
 	public void ScrollToItemFrame(TreeItem target)
 	{
 		ScrollToTarget = target;
 	}
 
-	public override async void _GuiInput(InputEvent @event)
+	public override void _GuiInput(InputEvent @event)
 	{
-		if (@event is InputEventMouseButton mouseEvent)
+		if (@event is InputEventMouseButton mouseEvent && mouseEvent.ButtonIndex == MouseButton.Right)
 		{
 			if (mouseEvent is { ButtonIndex: MouseButton.Right, Pressed: true })
 			{
 				TreeItem clickedItem = GetItemAtPosition(mouseEvent.Position);
-				if (clickedItem != null)
+				if (clickedItem != null) OpenContextMenuFor(clickedItem, mouseEvent.Position);
+			}
+			AcceptEvent();
+			return;
+		}
+
+		if (@event is InputEventScreenTouch touch)
+		{
+			if (touch.Pressed && _touchIdx == -1)
+			{
+				TreeItem ti = GetItemAtPosition(touch.Position);
+				if (ti != null)
 				{
-					ItemContextMenu?.Close();
-
-					// This is needed because selected instances couldn't update beforehand (especially with RMB select)
-					await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-					await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-
-					List<Instance> instances = World.Current!.CreatorContext.Selections.SelectedInstances;
-
-					if (instances.Count == 1)
-					{
-						instances.Clear();
-						instances.Add(Explorer.GetInstanceFromTreeItem(clickedItem)!);
-					}
-
-					ItemContextMenu = new() { Targets = instances };
-					AddChild(ItemContextMenu);
-					ItemContextMenu.PopupAtCursor();
+					_touchIdx = touch.Index;
+					_touchStartLocal = touch.Position;
+					_touchStartTime = Time.GetTicksMsec() / 1000.0;
+					_touchItem = ti;
+					_touchFired = false;
 				}
 			}
+			else if (!touch.Pressed && touch.Index == _touchIdx)
+			{
+				_touchIdx = -1;
+				_touchItem = null;
+			}
 		}
-		else if (@event.IsActionPressed("rename"))
+		else if (@event is InputEventScreenDrag drag && drag.Index == _touchIdx)
+		{
+			if ((drag.Position - _touchStartLocal).Length() > TouchMoveCancelPx)
+			{
+				_touchIdx = -1;
+				_touchItem = null;
+			}
+		}
+
+		if (@event.IsActionPressed("rename"))
 		{
 			AcceptEvent();
 			EditSelected(true);
+			return;
 		}
+
 		base._GuiInput(@event);
+	}
+
+	private void OpenContextMenuFor(TreeItem item, Vector2 localPos)
+	{
+		if (Explorer.GetInstanceFromTreeItem(item) is not Instance clickedInstance) return;
+
+		ItemContextMenu?.Close();
+
+		CreatorSelections selections = World.Current!.CreatorContext.Selections;
+		List<Instance> currentSelection = selections.SelectedInstances;
+		List<Instance> targets;
+		if (currentSelection.Count > 1 && currentSelection.Contains(clickedInstance))
+		{
+			targets = [.. currentSelection];
+		}
+		else
+		{
+			selections.DeselectAll();
+			selections.Select(clickedInstance);
+			targets = [clickedInstance];
+		}
+
+		ItemContextMenu = new() { Targets = targets };
+		AddChild(ItemContextMenu);
+
+		Vector2 viewportPos = GlobalPosition + localPos;
+		Vector2I popupPos = new((int)viewportPos.X, (int)viewportPos.Y);
+		ExplorerItemContextMenu menuRef = ItemContextMenu;
+		Callable.From(() =>
+		{
+			if (IsInstanceValid(menuRef))
+			{
+				menuRef.Popup(new Rect2I(popupPos, Vector2I.Zero));
+			}
+		}).CallDeferred();
 	}
 
 	private void OnItemActivated()

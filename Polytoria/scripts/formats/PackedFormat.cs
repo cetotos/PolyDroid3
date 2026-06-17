@@ -61,12 +61,12 @@ public static partial class PackedFormat
 		File.WriteAllText(metaPath, JsonSerializer.Serialize(dict, ProjectJSONGenerationContext.Default.DictionaryStringString));
 	}
 
-	public static async Task<byte[]> PackProject(string projectPath, IProgress<LoadOverlayProgress>? progress = null)
+	public static async Task<byte[]> PackProject(string projectPath, IProgress<LoadOverlayProgress>? progress = null, CompressionLevel compression = CompressionLevel.Optimal)
 	{
 		using MemoryStream stream = new();
 		using (ZipArchive archive = new(stream, ZipArchiveMode.Create, true))
 		{
-			await PackProjectToArchive(projectPath, archive, progress);
+			await PackProjectToArchive(projectPath, archive, progress, compression);
 		}
 		return stream.ToArray();
 	}
@@ -81,7 +81,7 @@ public static partial class PackedFormat
 		return stream.ToArray();
 	}
 
-	public static async Task PackProjectToArchive(string projectPath, ZipArchive archive, IProgress<LoadOverlayProgress>? progress = null)
+	public static async Task PackProjectToArchive(string projectPath, ZipArchive archive, IProgress<LoadOverlayProgress>? progress = null, CompressionLevel compression = CompressionLevel.Optimal)
 	{
 		string metaJsonPath = projectPath.PathJoin(Globals.ProjectMetaFileName);
 		string inputJsonPath = projectPath.PathJoin(Globals.ProjectInputMapName);
@@ -197,7 +197,7 @@ public static partial class PackedFormat
 
 			if (fileContents.TryGetValue(linkedPath, out byte[]? fileData))
 			{
-				ZipArchiveEntry entry = archive.CreateEntry(linkedPath);
+				ZipArchiveEntry entry = archive.CreateEntry(linkedPath, compression);
 				using Stream entryStream = entry.Open();
 				entryStream.Write(fileData);
 			}
@@ -312,9 +312,9 @@ public static partial class PackedFormat
 		indexWriter.Write(indexJson);
 	}
 
-	public static async Task PackProjectToFile(string projectPath, string filePath, IProgress<LoadOverlayProgress>? progress = null)
+	public static async Task PackProjectToFile(string projectPath, string filePath, IProgress<LoadOverlayProgress>? progress = null, CompressionLevel compression = CompressionLevel.Optimal)
 	{
-		byte[] data = await PackProject(projectPath, progress);
+		byte[] data = await PackProject(projectPath, progress, compression);
 		File.WriteAllBytes(filePath, data);
 	}
 

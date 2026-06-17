@@ -1,28 +1,20 @@
-<img src="docs/header.svg" width="100%">
+> [!IMPORTANT]
+> PolyDroid 3 is **not** an official client, meaning it cannot connect to official servers! It is only able to connect to our self-hosted servers and .poly files for testing PolyDroid 3.
 
-# Polytoria
+# PolyDroid 3
 
 [![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
-[![Godot Engine](https://img.shields.io/badge/Godot-4.6.2-blue?logo=godot-engine)](https://godotengine.org/)
+[![Godot Engine](https://img.shields.io/badge/Godot-4.7-blue?logo=godot-engine)](https://godotengine.org/)
 [![.NET](https://img.shields.io/badge/.NET-10-purple?logo=dotnet)](https://dotnet.microsoft.com/)
+[![Discord](https://img.shields.io/discord/1495088499383210226?label=Discord&logo=discord&logoColor=white&color=5865F2)](https://discord.gg/R9H82jSc)
 
-Polytoria is a 3D multiplayer gaming platform built on top of the [Godot Engine](https://godotengine.org/). It provides a set of tools for creating your multiplayer games, with server-client architecture, synchronized state replication and scripting powered by [Luau](https://luau.org/). Worlds can be published to [polytoria.com](http://polytoria.com/), which is accessible from Windows, macOS and Linux, with mobile in the works!
-
-![15 Seconds by phoe](docs/creator.png)
-
-*Photo credit: [15 Seconds by phoe](https://polytoria.com/places/12661)*
+PolyDroid 3 is a fork of Polytoria 2.0 built on the Godot 4.7 beta with mobile, XR, Windows and Linux compability. It is mainly optimized for Android touchscreens, with the ability to cross-play with other platforms. It also features an experimental Creator for Android mainly built for large touchscreens like tablets or foldables. Please keep in mind the PolyDroid 3 is **beta software**. You may experience issues, and if you do, please report them in the [issues page](https://github.com/cetotos/PolyDroid3/issues).
 
 ## Getting the Software
 
-You can head to [polytoria.com](https://polytoria.com/) to register your account. The download button will be available in the [worlds](https://polytoria.com/places) page.
+You can get the latest builds from the [GitHub releases](https://github.com/cetotos/PolyDroid3/releases/latest).
 
-To launch the creator software, head to [polytoria.com/create](https://polytoria.com/create/) and click "Launch Creator".
-
-## Contributing
-
-Contributing guides are currently a work in progress.
-
-Meanwhile, you can join the [Polytoria Contributors](https://discord.gg/HUgEE9FhSU) Discord server if you have any questions!
+If you want to install on iOS, you can use iloader. You will need a free Apple developer account and a computer to do install.
 
 ## License
 
@@ -30,11 +22,14 @@ Unless otherwise noted:
 - Source code is licensed under Mozilla Public License Version 2.0. Please check [LICENSE](/LICENSE) for more info.
 - Brand assets, logos, names, and trademarks are not licensed for reuse.
 - Third-party assets and native binaries are governed by their own licenses. Please refer to the respective repositories and documentation for more information.
+- All credits for the Polytoria assets and Polytoria API go to [Polytoria](https://github.com/polytoria/polytoria-game), their developers, and their contributors.
 
 ## Contributors
 
-<a href="https://github.com/Polytoria/polytoria-game/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Polytoria/polytoria-game" />
+<a href="https://github.com/cetotos/PolyDroid3/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=cetotos/PolyDroid3" />
 </a>
 
 Made with [contrib.rocks](https://contrib.rocks).
+
+Special thanks to the [PolyDroid community](https://discord.gg/R9H82jSc) and the PolyDroid 3 beta testers for their help and support!

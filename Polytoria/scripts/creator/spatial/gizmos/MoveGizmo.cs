@@ -165,8 +165,9 @@ public partial class MoveGizmo : Node, IGizmo
 			if (btn.ButtonIndex != MouseButton.Left) return;
 			if (btn.Pressed)
 			{
-				if (_currentAxis == MoveGizmoAxis.None) return;
 				if (!Visible) return;
+				UpdateAxis(rayOrigin, rayNormal);
+				if (_currentAxis == MoveGizmoAxis.None) return;
 
 				_startRayOrigin = rayOrigin;
 				_startRayNormal = rayNormal;
@@ -200,13 +201,25 @@ public partial class MoveGizmo : Node, IGizmo
 		base._Input(@event);
 	}
 
+	public bool IsDragging => _isMouseDragging;
+
+	public bool PickHandleAtPointer()
+	{
+		if (!Visible || Targets.Count == 0) return false;
+		Vector2 mousePos = GDCamera.GetViewport().GetMousePosition();
+		Vector3 rayOrigin = GDCamera.ProjectRayOrigin(mousePos);
+		Vector3 rayNormal = GDCamera.ProjectRayNormal(mousePos);
+		UpdateAxis(rayOrigin, rayNormal);
+		return _currentAxis != MoveGizmoAxis.None;
+	}
+
 	private void RedrawGizmo()
 	{
 		if (Targets.Count == 0) return;
 		if (!Visible) return;
 
 		Transform3D pform = Gizmos.GetCenterPivot([.. Targets]);
-		float gizmoScale = pform.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f;
+		float gizmoScale = pform.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f * Gizmos.GizmoSizeMul;
 		Vector3 pScale = new(gizmoScale, gizmoScale, gizmoScale);
 
 		for (int i = 0; i < 3; i++)
@@ -240,7 +253,7 @@ public partial class MoveGizmo : Node, IGizmo
 	private void UpdateAxis(Vector3 rayOrigin, Vector3 rayNormal)
 	{
 		Transform3D pivot = Gizmos.GetCenterPivot([.. Targets]);
-		float gizmoScale = pivot.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f;
+		float gizmoScale = pivot.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f * Gizmos.GizmoSizeMul;
 
 		float colD = 1e20f;
 		int colAxis = -1;
@@ -248,7 +261,7 @@ public partial class MoveGizmo : Node, IGizmo
 		for (int i = 0; i < 3; i++)
 		{
 			Vector3 grabberPos = pivot.Origin + pivot.Basis.GetColumn(i).Normalized() * gizmoScale * (GizmoArrowOffset + Gizmos.GizmoArrowSize * 0.5f);
-			float grabberRadius = gizmoScale * Gizmos.GizmoArrowSize;
+			float grabberRadius = gizmoScale * Gizmos.GizmoArrowSize * Gizmos.GrabRadiusMul;
 
 			Vector3[] result = Geometry3D.SegmentIntersectsSphere(rayOrigin, rayOrigin + rayNormal * Gizmos.MaxZ, grabberPos, grabberRadius);
 

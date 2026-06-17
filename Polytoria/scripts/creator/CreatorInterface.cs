@@ -99,7 +99,21 @@ public partial class CreatorInterface : Control, IScriptObject
 	public override void _Ready()
 	{
 		_creatorTheme = ResourceLoader.Load<Theme>(CreatorThemePath, cacheMode: ResourceLoader.CacheMode.IgnoreDeep);
-		LastFilePromptFolder = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments);
+		if (Polytoria.Shared.Globals.IsMobileBuild)
+		{
+			LastFilePromptFolder = "user://";
+		}
+		else
+		{
+			try
+			{
+				LastFilePromptFolder = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments);
+			}
+			catch
+			{
+				LastFilePromptFolder = "user://";
+			}
+		}
 
 		Theme = _creatorTheme;
 
@@ -157,13 +171,23 @@ public partial class CreatorInterface : Control, IScriptObject
 
 	private void ApplyUIScale()
 	{
-		float baseUIScale = CreatorSettingsService.Instance.Get<float>(CreatorSettingKeys.Interface.UiScale);
+		float baseUIScale = Mathf.Clamp(CreatorSettingsService.Instance.Get<float>(CreatorSettingKeys.Interface.UiScale), 0.5f, 1.4f);
 
-		// Get the OS display scale factor
-		int screenId = DisplayServer.WindowGetCurrentScreen();
-		float osScale = DisplayServer.ScreenGetScale(screenId);
+		float osScale;
+		float mobileScale;
+		if (Polytoria.Shared.Globals.IsMobileBuild)
+		{
+			osScale = 1f;
+			mobileScale = 1f;
+		}
+		else
+		{
+			int screenId = DisplayServer.WindowGetCurrentScreen();
+			osScale = DisplayServer.ScreenGetScale(screenId);
+			mobileScale = 1f;
+		}
 
-		float finalScale = baseUIScale * osScale;
+		float finalScale = baseUIScale * osScale * mobileScale;
 		PT.Print($"Final UI Scale: {finalScale}");
 		GetWindow().ContentScaleFactor = finalScale;
 	}
@@ -629,15 +653,44 @@ public partial class CreatorInterface : Control, IScriptObject
 
 	public void PopupWindow(Window window)
 	{
-		window.Visible = false;
-		window.ForceNative = true;
 		window.Theme = _creatorTheme;
+		window.Visible = false;
+
+		SceneTree? mainTree = Engine.GetMainLoop() as SceneTree;
+		Window? root = mainTree?.Root;
+		Node parent;
+		if (IsInsideTree()) parent = this;
+		else if (root != null) parent = root;
+		else parent = this;
+
+		if (Polytoria.Shared.Globals.IsMobileBuild)
+		{
+			window.ForceNative = false;
+			window.Transient = false;
+			window.TransientToFocused = false;
+			window.Exclusive = false;
+			parent.AddChild(window);
+
+			Vector2I size = window.Size;
+			if (size.X < 200 || size.Y < 200) size = new Vector2I(800, 600);
+			window.Size = size;
+
+			Vector2 vpSize = root != null ? root.GetVisibleRect().Size : new Vector2(DisplayServer.WindowGetSize(0).X, DisplayServer.WindowGetSize(0).Y);
+			window.Position = new Vector2I(
+				(int)Mathf.Max(0, (vpSize.X - size.X) * 0.5f),
+				(int)Mathf.Max(0, (vpSize.Y - size.Y) * 0.5f));
+			window.Show();
+			window.MoveToForeground();
+			return;
+		}
+
+		window.ForceNative = true;
 
 		float uiScale = GetWindow().ContentScaleFactor;
 		window.ContentScaleFactor = uiScale;
 		window.Size = (Vector2I)((Vector2)window.Size * uiScale);
 
-		AddChild(window);
+		parent.AddChild(window);
 		window.PopupCentered();
 	}
 
@@ -659,37 +712,137 @@ public partial class CreatorInterface : Control, IScriptObject
 	{
 		bool replaceCur = string.IsNullOrEmpty(data.CurrentDirectory);
 		string currentDir = replaceCur ? LastFilePromptFolder : data.CurrentDirectory;
+		string[] filters = data.Filters ?? Array.Empty<string>();
+		DisplayServer.FileDialogMode mode = data.DialogMode;
 
-		FileDialog dialog = new()
+		Callable cb = Callable.From<bool, string[], int>((status, paths, _) =>
 		{
-			Title = data.Title,
-			CurrentDir = currentDir,
-			CurrentFile = data.FileName,
-			ShowHiddenFiles = data.ShowHidden,
-			FileMode = MapFileMode(data.DialogMode),
-			Access = FileDialog.AccessEnum.Filesystem,
-			UseNativeDialog = true,
-		};
+			if (!status || paths == null || paths.Length == 0)
+			{
+				onCancel?.Invoke();
+				return;
+			}
+			string[] resolved = new string[paths.Length];
+			for (int i = 0; i < paths.Length; i++)
+			{
+				resolved[i] = ResolvePickedPath(paths[i], mode);
+			}
+			if (replaceCur && !string.IsNullOrEmpty(resolved[0])) LastFilePromptFolder = resolved[0].GetBaseDir();
+			callback.Invoke(resolved);
+		});
 
-		if (data.Filters is { Length: > 0 })
-			dialog.Filters = data.Filters;
+		DisplayServer.FileDialogShow(
+			data.Title,
+			currentDir,
+			data.FileName ?? "",
+			data.ShowHidden,
+			mode,
+			filters,
+			cb);
+	}
 
-		AddChild(dialog);
+	private const string SafCacheDir = "user://creator_picker_cache";
 
-		void OnPathsSelected(string[] paths)
+	private string ResolvePickedPath(string raw, DisplayServer.FileDialogMode mode)
+	{
+		if (string.IsNullOrEmpty(raw)) return raw;
+		if (!raw.StartsWith("content://")) return raw;
+
+		Godot.DirAccess.MakeDirRecursiveAbsolute(SafCacheDir);
+
+		string decoded = Uri.UnescapeDataString(raw);
+		string fileName = decoded.GetFile();
+		if (string.IsNullOrEmpty(fileName)) fileName = $"pick_{Time.GetUnixTimeFromSystem():F0}";
+		string localResPath = $"{SafCacheDir}/{fileName}";
+		string localAbsPath = ProjectSettings.GlobalizePath(localResPath);
+
+		switch (mode)
 		{
-			if (replaceCur)
-				LastFilePromptFolder = paths[0].GetBaseDir();
-			callback.Invoke(paths);
-			dialog.QueueFree();
+			case DisplayServer.FileDialogMode.OpenFile:
+			case DisplayServer.FileDialogMode.OpenFiles:
+			{
+				using var src = Godot.FileAccess.Open(raw, Godot.FileAccess.ModeFlags.Read);
+				if (src == null)
+				{
+					PT.PrintErr($"failed to open content URI for read: {raw} (err {Godot.FileAccess.GetOpenError()})");
+					return raw;
+				}
+				long len = (long)src.GetLength();
+				byte[] bytes = src.GetBuffer(len);
+				using var dst = Godot.FileAccess.Open(localResPath, Godot.FileAccess.ModeFlags.Write);
+				if (dst == null)
+				{
+					PT.PrintErr($"failed to open cache path for write: {localResPath} (err {Godot.FileAccess.GetOpenError()})");
+					return raw;
+				}
+				dst.StoreBuffer(bytes);
+				dst.Flush();
+				return localAbsPath;
+			}
+			case DisplayServer.FileDialogMode.SaveFile:
+			{
+				try { if (File.Exists(localAbsPath)) File.Delete(localAbsPath); } catch { }
+				_ = ScheduleSafWriteBack(localAbsPath, raw);
+				return localAbsPath;
+			}
+			default:
+			{
+				const string fallbackResDir = "user://creator_projects";
+				Godot.DirAccess.MakeDirRecursiveAbsolute(fallbackResDir);
+				string fallback = ProjectSettings.GlobalizePath(fallbackResDir);
+				PT.PrintErr($"directory URIs not supported! ({raw}) .. using {fallback}");
+				return fallback;
+			}
 		}
+	}
 
-		dialog.FileSelected += path => OnPathsSelected([path]);
-		dialog.DirSelected += path => OnPathsSelected([path]);
-		dialog.FilesSelected += paths => OnPathsSelected(paths);
-		dialog.Canceled += () => { onCancel?.Invoke(); dialog.QueueFree(); };
-
-		dialog.PopupCentered(new Vector2I(800, 600));
+	private async Task ScheduleSafWriteBack(string localAbsPath, string contentUri)
+	{
+		long lastSize = -1;
+		int stableTicks = 0;
+		const int pollMs = 200;
+		const int maxTicks = 60 * 1000 / pollMs;
+		for (int tick = 0; tick < maxTicks; tick++)
+		{
+			await ToSignal(GetTree().CreateTimer(pollMs / 1000.0), SceneTreeTimer.SignalName.Timeout);
+			if (!File.Exists(localAbsPath))
+			{
+				continue;
+			}
+			long size;
+			try { size = new FileInfo(localAbsPath).Length; }
+			catch { continue; }
+			if (size > 0 && size == lastSize)
+			{
+				stableTicks++;
+				if (stableTicks >= 3) break;
+			}
+			else
+			{
+				stableTicks = 0;
+				lastSize = size;
+			}
+		}
+		if (!File.Exists(localAbsPath))
+		{
+			PT.PrintErr($"write back skipped! no file at {localAbsPath}");
+			return;
+		}
+		try
+		{
+			byte[] bytes = await File.ReadAllBytesAsync(localAbsPath);
+			using var dst = Godot.FileAccess.Open(contentUri, Godot.FileAccess.ModeFlags.Write);
+			if (dst == null)
+			{
+				PT.PrintErr($"write-back failed to open URI {contentUri} (err {Godot.FileAccess.GetOpenError()})");
+				return;
+			}
+			dst.StoreBuffer(bytes);
+		}
+		catch (Exception ex)
+		{
+			PT.PrintErr($"SAF write-back failed: {ex}");
+		}
 	}
 
 	private static FileDialog.FileModeEnum MapFileMode(DisplayServer.FileDialogMode mode) => mode switch

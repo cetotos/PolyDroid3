@@ -14,7 +14,12 @@ namespace Polytoria.Datamodel;
 [Instantiable]
 public partial class Grabbable : Instance
 {
+	private const float VRFollowForce = 40f;
+	private const float VRRotateForce = 20f;
+	private const float ReleaseHandbackDelay = 0.6f;
+
 	private bool _dragging = false;
+	private int _releaseSeq;
 	private Physical? _parent = null!;
 
 	private float _force;
@@ -84,6 +89,98 @@ public partial class Grabbable : Instance
 	[ScriptProperty] public PTSignal<Player> Grabbed { get; private set; } = new();
 	[ScriptProperty] public PTSignal<Player> Released { get; private set; } = new();
 
+	internal Node3D? VRHand { get; private set; }
+	internal Node3D? VRHand2 { get; private set; }
+
+	private Transform3D _vrHandOffset = Transform3D.Identity;
+	private Transform3D _vrTwoHandOffset = Transform3D.Identity;
+
+	internal bool CanVRGrab(Node3D hand, Player by)
+	{
+		if (_parent == null) return false;
+		if (PermissionMode == GrabbablePermissionModeEnum.None) return false;
+		if (VRHand == hand || VRHand2 == hand) return false;
+		if (VRHand != null) return VRHand2 == null && _dragger == by;
+		return _dragger == null;
+	}
+
+	internal bool TryVRGrab(Node3D hand, Player by)
+	{
+		if (!CanVRGrab(hand, by)) return false;
+		if (VRHand == null)
+		{
+			VRHand = hand;
+			CaptureVROffsets();
+			_parent!.InvokeClicked(by);
+		}
+		else
+		{
+			VRHand2 = hand;
+			CaptureVROffsets();
+		}
+		return true;
+	}
+
+	internal void VRRelease(Node3D hand, Vector3 throwVelocity)
+	{
+		if (hand == VRHand2)
+		{
+			VRHand2 = null;
+			CaptureVROffsets();
+			return;
+		}
+		if (hand != VRHand) return;
+		VRHand = VRHand2;
+		VRHand2 = null;
+		if (VRHand != null)
+		{
+			CaptureVROffsets();
+			return;
+		}
+		if (!_dragging) return;
+		if (UseDragForce && Parent?.GDNode is RigidBody3D rigid3D)
+		{
+			rigid3D.LinearVelocity = throwVelocity;
+		}
+		ReleaseDrag(throwVelocity);
+	}
+
+	private void CaptureVROffsets()
+	{
+		if (_parent?.GDNode is not Node3D node) return;
+		if (VRHand != null && Node.IsInstanceValid(VRHand))
+		{
+			_vrHandOffset = VRHand.GlobalTransform.AffineInverse() * node.GlobalTransform;
+		}
+		if (VRHand2 != null && Node.IsInstanceValid(VRHand2) && TwoHandFrame() is Transform3D frame)
+		{
+			_vrTwoHandOffset = frame.AffineInverse() * node.GlobalTransform;
+		}
+	}
+
+	private Transform3D? TwoHandFrame()
+	{
+		Vector3 a = VRHand!.GlobalPosition;
+		Vector3 b = VRHand2!.GlobalPosition;
+		Vector3 dir = b - a;
+		if (dir.LengthSquared() < 1e-6f) return null;
+		dir = dir.Normalized();
+		Vector3 side = dir.Cross(VRHand.GlobalTransform.Basis.Y);
+		if (side.LengthSquared() < 1e-6f) side = dir.Cross(Vector3.Up);
+		if (side.LengthSquared() < 1e-6f) side = dir.Cross(Vector3.Right);
+		side = side.Normalized();
+		return new Transform3D(new Basis(dir, side.Cross(dir), side), a);
+	}
+
+	private Transform3D VRTargetTransform()
+	{
+		if (VRHand2 != null && Node.IsInstanceValid(VRHand2) && TwoHandFrame() is Transform3D frame)
+		{
+			return frame * _vrTwoHandOffset;
+		}
+		return VRHand!.GlobalTransform * _vrHandOffset;
+	}
+
 	public override void EnterTree()
 	{
 		if (Parent is Physical phy)
@@ -139,7 +236,7 @@ public partial class Grabbable : Instance
 	{
 		if (@event.IsActionReleased("activate"))
 		{
-			if (_dragging)
+			if (_dragging && VRHand == null)
 			{
 				ReleaseDrag();
 			}
@@ -193,11 +290,21 @@ public partial class Grabbable : Instance
 		RpcId(plr.PeerID, nameof(NetGrabDrag));
 	}
 
-	private void ReleaseDrag()
+	private async void ReleaseDrag(Vector3? velocity = null)
 	{
+		Vector3 v = velocity ?? (Parent?.GDNode is RigidBody3D rigid3D ? rigid3D.LinearVelocity : Vector3.Zero);
 		InternalReleaseDrag();
 		Root.PlayerGUI.SetCursorShape(Control.CursorShape.Arrow);
-		RpcId(1, nameof(NetDispatchReleaseDrag));
+
+		int seq = ++_releaseSeq;
+		await Globals.Singleton.ToSignal(Globals.Singleton.GetTree().CreateTimer(ReleaseHandbackDelay), SceneTreeTimer.SignalName.Timeout);
+		if (IsDeleted || _dragging || seq != _releaseSeq) return;
+
+		if (Parent?.GDNode is RigidBody3D rb)
+		{
+			v = rb.LinearVelocity;
+		}
+		RpcId(1, nameof(NetDispatchReleaseDrag), v.X, v.Y, v.Z);
 	}
 
 	[NetRpc(AuthorityMode.Server, TransferMode = TransferMode.Reliable)]
@@ -215,7 +322,7 @@ public partial class Grabbable : Instance
 	}
 
 	[NetRpc(AuthorityMode.Any, TransferMode = TransferMode.Reliable)]
-	private void NetDispatchReleaseDrag()
+	private void NetDispatchReleaseDrag(float vx, float vy, float vz)
 	{
 		Player? p = Root.Players.GetPlayerFromPeerID(RemoteSenderId);
 
@@ -225,6 +332,12 @@ public partial class Grabbable : Instance
 
 			// Return authority to server
 			_parent?.SetNetworkAuthority(null);
+
+			if (UseDragForce && _parent?.GDNode is RigidBody3D rigid3D)
+			{
+				rigid3D.Sleeping = false;
+				rigid3D.LinearVelocity = new Vector3(vx, vy, vz);
+			}
 
 			Rpc(nameof(NetReleaseDrag));
 		}
@@ -256,7 +369,17 @@ public partial class Grabbable : Instance
 		{
 			if (Parent.GDNode is RigidBody3D rigid3D)
 			{
-				if (_dragging)
+				if (_dragging && VRHand != null)
+				{
+					if (VRHand2 != null && !Node.IsInstanceValid(VRHand2)) VRHand2 = null;
+					if (Node.IsInstanceValid(VRHand))
+					{
+						Transform3D target = VRTargetTransform();
+						rigid3D.LinearVelocity = (target.Origin - rigid3D.GlobalPosition) * Mathf.Max(Force, VRFollowForce);
+						rigid3D.AngularVelocity = RotationToVelocity(rigid3D.GlobalTransform.Basis, target.Basis);
+					}
+				}
+				else if (_dragging)
 				{
 					Viewport viewport = Globals.Singleton.GetViewport();
 					Camera3D camera = viewport.GetCamera3D();
@@ -298,6 +421,16 @@ public partial class Grabbable : Instance
 			}
 		}
 		base.PhysicsProcess(delta);
+	}
+
+	private static Vector3 RotationToVelocity(Basis current, Basis target)
+	{
+		Quaternion dq = (target.Orthonormalized() * current.Orthonormalized().Inverse()).GetRotationQuaternion();
+		if (dq.W < 0f) dq = new Quaternion(-dq.X, -dq.Y, -dq.Z, -dq.W);
+		Vector3 axis = new(dq.X, dq.Y, dq.Z);
+		float len = axis.Length();
+		if (len < 1e-4f) return Vector3.Zero;
+		return axis / len * (2f * Mathf.Acos(Mathf.Clamp(dq.W, -1f, 1f))) * VRRotateForce;
 	}
 
 	[ScriptEnum]

@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://c5tvy313mugfr"
+path="res://.godot/imported/shadow_miss.glsl-37333008a17fa4889167709f48faef82.res"
+
+[deps]
+
+source_file="res://rt_compositor/shadow_miss.glsl"
+dest_files=["res://.godot/imported/shadow_miss.glsl-37333008a17fa4889167709f48faef82.res"]
+
+[params]
+

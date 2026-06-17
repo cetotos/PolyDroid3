@@ -206,36 +206,30 @@ class IosExportPlugin extends EditorExportPlugin:
 
 
 	func _regenerate_entitlements_file() -> void:
-		if _export_path:
-			if _export_path.ends_with(EXPORT_FILE_SUFFIX):
-				var __project_path = ProjectSettings.globalize_path("res://")
-				Deeplink.log_info("******** PROJECT PATH='%s'" % __project_path)
-				var __directory_path = "%s%s" % [__project_path, _export_path.trim_suffix(EXPORT_FILE_SUFFIX)]
-				if DirAccess.dir_exists_absolute(__directory_path):
-					var __project_name = _get_project_name_from_path(__directory_path)
-					var __file_path = "%s/%s.entitlements" % [__directory_path, __project_name]
-					Deeplink.log_info("******** ENTITLEMENTS FILE PATH='%s'" % __file_path)
-					if FileAccess.file_exists(__file_path):
-						DirAccess.remove_absolute(__file_path)
-					var __file = FileAccess.open(__file_path, FileAccess.WRITE)
-					if __file:
-						__file.store_string(ENTITLEMENTS_FILE_HEADER)
+		if not _export_path or not _export_path.ends_with(EXPORT_FILE_SUFFIX):
+			return
 
-						for __config in _export_config.deeplinks:
-							__file.store_line("\t\t<string>applinks:%s</string>" % __config.host)
-							# As opposed to Android, in iOS __config.scheme, __config.path_prefix are
-							# configured on the server side for Universal Links (apple-app-site-association file)
+		var __project_path = ProjectSettings.globalize_path("res://")
+		Deeplink.log_info("******** PROJECT PATH='%s'" % __project_path)
+		var __directory_path = "%s%s" % [__project_path, _export_path.trim_suffix(EXPORT_FILE_SUFFIX)]
+		if not DirAccess.dir_exists_absolute(__directory_path):
+			Deeplink.log_error("Directory '%s' doesn't exist." % __directory_path)
+			return
 
-						__file.store_string(ENTITLEMENTS_FILE_FOOTER)
-						__file.close()
-					else:
-						Deeplink.log_error("Couldn't open file '%s' for writing." % __file_path)
-				else:
-					Deeplink.log_error("Directory '%s' doesn't exist." % __directory_path)
-			else:
-				Deeplink.log_error("Unexpected export path '%s'" % _export_path)
-		else:
-			Deeplink.log_error("Export path is not defined.")
+		var __project_name = _get_project_name_from_path(__directory_path)
+		var __file_path = "%s/%s.entitlements" % [__directory_path, __project_name]
+		Deeplink.log_info("******** ENTITLEMENTS FILE PATH='%s'" % __file_path)
+		if FileAccess.file_exists(__file_path):
+			DirAccess.remove_absolute(__file_path)
+		var __file = FileAccess.open(__file_path, FileAccess.WRITE)
+		if not __file:
+			Deeplink.log_error("Couldn't open file '%s' for writing." % __file_path)
+			return
+
+		__file.store_string("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+		__file.store_string("<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n")
+		__file.store_string("<plist version=\"1.0\">\n<dict>\n</dict>\n</plist>\n")
+		__file.close()
 
 
 	func _get_project_name_from_path(a_path: String) -> String:

@@ -9,15 +9,23 @@ default_font_size = 12
 
 [node name="Control" type="Control" unique_id=1243731607]
 layout_mode = 3
-anchors_preset = 0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 
 [node name="NerdStats" type="PanelContainer" parent="." unique_id=1272961836]
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
 offset_left = 16.0
-offset_top = 320.0
+offset_top = -78.0
 offset_right = 216.0
-offset_bottom = 382.0
+offset_bottom = -16.0
+grow_vertical = 0
 mouse_filter = 2
 theme = SubResource("Theme_yrpeo")
 script = ExtResource("2_hn1qi")

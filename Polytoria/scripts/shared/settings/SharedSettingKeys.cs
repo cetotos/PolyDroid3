@@ -18,6 +18,7 @@ public static class SharedSettingKeys
 	{
 		public const string Prefix = "graphics.";
 		public const string RenderingMethod = "graphics.rendering_method";
+		public const string GraphicsApi = "graphics.graphics_api";
 		public const string Preset = "graphics.preset";
 		public const string RenderScale = "graphics.render_scale";
 		public const string Msaa = "graphics.msaa";
@@ -33,10 +34,20 @@ public static class SharedSettingKeys
 		public const string Ssr = "graphics.post_processing.ssr";
 		public const string Ssil = "graphics.post_processing.ssil";
 		public const string Sdfgi = "graphics.post_processing.sdfgi";
+		public const string RtReflections = "graphics.post_processing.rt_reflections";
 		public const string SdfgiCellSize = "graphics.post_processing.sdfgi_cell_size";
 		public const string SdfgiCascades = "graphics.post_processing.sdfgi_cascades";
 		public const string SsilRadius = "graphics.post_processing.ssil_radius";
 		public const string NormalMaps = "graphics.post_processing.normal_maps";
+	}
+
+	public static class RayTracing
+	{
+		public const string Prefix = "graphics.ray_tracing.";
+		public const string GlobalIllumination = "graphics.ray_tracing.gi";
+		public const string GiStrength = "graphics.ray_tracing.gi_strength";
+		public const string Reflections = "graphics.ray_tracing.reflections";
+		public const string Volumetrics = "graphics.ray_tracing.volumetrics";
 	}
 
 	public static class Advanced

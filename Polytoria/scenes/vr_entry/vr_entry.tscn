@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bm4inmenu0root"]
+
+[ext_resource type="Script" path="res://scripts/client/main_menu/MainMenu.cs" id="1_main"]
+
+[node name="MainMenu" type="Node" unique_id=1932101010]
+script = ExtResource("1_main")

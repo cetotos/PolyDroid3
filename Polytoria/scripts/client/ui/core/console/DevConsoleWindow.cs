@@ -19,12 +19,27 @@ public partial class DevConsoleWindow : Control
 	private Vector2 _resizeStartSize = Vector2.Zero;
 	private Vector2 _resizeStartMousePos = Vector2.Zero;
 
+	private Tween? _anim;
+	private bool _open = false;
+
 	public override void _EnterTree()
 	{
 		_closeButton.Pressed += OnCloseRequested;
 		_dragZone.GuiInput += OnDragZoneInput;
 		_resizeZone.GuiInput += OnResizeZoneInput;
+		MouseFilter = _open ? MouseFilterEnum.Stop : MouseFilterEnum.Ignore;
 		base._EnterTree();
+	}
+
+	private void FitToViewport()
+	{
+		Vector2 viewport = GetViewportRect().Size;
+		float halfWidth = Mathf.Min(400f, viewport.X / 2f - 20f);
+		float halfHeight = Mathf.Min(250f, viewport.Y / 2f - 20f);
+		OffsetLeft = -halfWidth;
+		OffsetRight = halfWidth;
+		OffsetTop = -halfHeight;
+		OffsetBottom = halfHeight;
 	}
 
 	private void OnDragZoneInput(InputEvent @event)
@@ -106,11 +121,37 @@ public partial class DevConsoleWindow : Control
 
 	public void Toggle()
 	{
-		Visible = !Visible;
+		SetOpen(!_open);
+	}
+
+	public void SetOpen(bool open)
+	{
+		if (open == _open) return;
+		_open = open;
+
+		_anim?.Kill();
+		Modulate = Colors.White;
+
+		if (open)
+		{
+			FitToViewport();
+			Visible = true;
+			MouseFilter = MouseFilterEnum.Stop;
+			PivotOffset = Size / 2f;
+			Scale = new Vector2(0.92f, 0.92f);
+			_anim = CreateTween().SetEase(Tween.EaseType.Out).SetTrans(Tween.TransitionType.Back);
+			_anim.TweenProperty(this, "scale", Vector2.One, 0.16f);
+		}
+		else
+		{
+			Scale = Vector2.One;
+			Visible = false;
+			MouseFilter = MouseFilterEnum.Ignore;
+		}
 	}
 
 	private void OnCloseRequested()
 	{
-		Visible = false;
+		SetOpen(false);
 	}
 }

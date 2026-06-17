@@ -13,6 +13,7 @@ namespace Polytoria.Utils;
 
 public static class PolyAPI
 {
+	private const string PolytoriaApi = "https://api.polytoria.com/";
 	private static readonly PTHttpClient _client = new();
 
 	public static void SetAuthToken(string userToken)
@@ -25,7 +26,15 @@ public static class PolyAPI
 	public static Task<APIUserInfo> GetUserFromID(int userID)
 	{
 		return _client.GetFromJsonAsync(
-			Globals.ApiEndpoint.PathJoin("/v1/users/" + userID.ToString()),
+			PolytoriaApi.PathJoin("/v1/users/" + userID.ToString()),
+			APIGenerationContext.Default.APIUserInfo
+		);
+	}
+
+	public static Task<APIUserInfo> FindUserByUsername(string username)
+	{
+		return _client.GetFromJsonAsync(
+			PolytoriaApi.PathJoin("/v1/users/find?username=" + System.Uri.EscapeDataString(username)),
 			APIGenerationContext.Default.APIUserInfo
 		);
 	}
@@ -58,7 +67,7 @@ public static class PolyAPI
 	public static Task<APIAvatarResponse> GetUserAvatarFromID(int userID)
 	{
 		return _client.GetFromJsonAsync(
-			Globals.ApiEndpoint.PathJoin("/v1/users/" + userID.ToString() + "/avatar"),
+			PolytoriaApi.PathJoin("/v1/users/" + userID.ToString() + "/avatar"),
 			APIGenerationContext.Default.APIAvatarResponse
 		);
 	}
@@ -105,7 +114,7 @@ public static class PolyAPI
 	public static Task<APIStoreItem> GetStoreItem(int id)
 	{
 		return _client.GetFromJsonAsync(
-			Globals.ApiEndpoint.PathJoin("/v1/store/" + id),
+			PolytoriaApi.PathJoin("/v1/store/" + id),
 			APIGenerationContext.Default.APIStoreItem
 		);
 	}
@@ -131,6 +140,6 @@ public static class PolyAPI
 
 	public static Task<string> GetProfanityList()
 	{
-		return _client.GetStringAsync(Globals.ApiEndpoint.PathJoin("/v1/game/server/profanity"));
+		return _client.GetStringAsync(PolytoriaApi.PathJoin("/v1/game/server/profanity"));
 	}
 }

@@ -1,0 +1,95 @@
+[gd_scene format=3 uid="uid://b5jitwijo0bg3"]
+
+[ext_resource type="Theme" uid="uid://dofh67vfwf6qe" path="res://resources/themes/mobile.tres" id="1_theme"]
+[ext_resource type="Script" path="res://scripts/mobile/ui/views/settings/ViewSettingsPage.cs" id="2_script"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_pad"]
+content_margin_left = 16.0
+content_margin_top = 16.0
+content_margin_right = 16.0
+content_margin_bottom = 16.0
+
+[node name="Control" type="Control" node_paths=PackedStringArray("_themeColorOption", "_devAddressField", "_devConnectButton", "_restartButton", "_versionLabel")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+_themeColorOption = NodePath("ScrollContainer/PanelContainer/Layout/ThemeRow/ThemeColorOption")
+_devAddressField = NodePath("ScrollContainer/PanelContainer/Layout/AddressField")
+_devConnectButton = NodePath("ScrollContainer/PanelContainer/Layout/ConnectButton")
+_restartButton = NodePath("ScrollContainer/PanelContainer/Layout/RestartButton")
+_versionLabel = NodePath("ScrollContainer/PanelContainer/Layout/VersionLabel")
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="PanelContainer" type="PanelContainer" parent="ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxEmpty_pad")
+
+[node name="Layout" type="VBoxContainer" parent="ScrollContainer/PanelContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="AppearanceHeader" type="Label" parent="ScrollContainer/PanelContainer/Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Appearance"
+
+[node name="ThemeRow" type="HBoxContainer" parent="ScrollContainer/PanelContainer/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ThemeColorLabel" type="Label" parent="ScrollContainer/PanelContainer/Layout/ThemeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+text = "Background color"
+
+[node name="ThemeColorOption" type="OptionButton" parent="ScrollContainer/PanelContainer/Layout/ThemeRow"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+theme_override_constants/align_to_largest_stylebox = 1
+
+[node name="DevSpacer" type="Control" parent="ScrollContainer/PanelContainer/Layout"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="DeveloperHeader" type="Label" parent="ScrollContainer/PanelContainer/Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Developer"
+
+[node name="AddressLabel" type="Label" parent="ScrollContainer/PanelContainer/Layout"]
+modulate = Color(1, 1, 1, 0.7)
+layout_mode = 2
+text = "Direct connect (host:port)"
+
+[node name="AddressField" type="LineEdit" parent="ScrollContainer/PanelContainer/Layout"]
+layout_mode = 2
+placeholder_text = "127.0.0.1:24221"
+
+[node name="ConnectButton" type="Button" parent="ScrollContainer/PanelContainer/Layout"]
+layout_mode = 2
+text = "Connect"
+
+[node name="RestartButton" type="Button" parent="ScrollContainer/PanelContainer/Layout"]
+layout_mode = 2
+text = "Restart app"
+
+[node name="VersionLabel" type="Label" parent="ScrollContainer/PanelContainer/Layout"]
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 2
+horizontal_alignment = 1
+text = "v?"

@@ -50,6 +50,8 @@ public abstract class SettingDef
 	public bool RequiresRestart { get; init; }
 	public bool IsAdvanced { get; init; }
 	public IReadOnlyList<ISettingCondition>? Conditions { get; init; }
+	public Func<ISettingsContext, string?>? DisabledText { get; init; }
+	public bool AutoOffWhenDisabled { get; init; }
 
 	public abstract object UntypedDefault { get; }
 	public abstract Type ValueType { get; }

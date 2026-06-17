@@ -1042,14 +1042,14 @@ split_offsets = PackedInt32Array(320, 0, 320)
 split_offset = 320
 
 [node name="Left" type="PanelContainer" parent="GUI/Splitter" unique_id=1145487419]
-custom_minimum_size = Vector2(320, 0)
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 mouse_filter = 2
 theme = SubResource("Theme_4pher")
 theme_override_styles/panel = SubResource("StyleBoxFlat_5xv5o")
 
 [node name="Split" type="VSplitContainer" parent="GUI/Splitter/Left" unique_id=1589463682]
-custom_minimum_size = Vector2(300, 0)
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 
 [node name="Toolbox" parent="GUI/Splitter/Left/Split" unique_id=1950152327 instance=ExtResource("26_dfqoe")]
@@ -1209,14 +1209,14 @@ expand_icon = true
 visible = false
 
 [node name="Right" type="PanelContainer" parent="GUI/Splitter" unique_id=528512110]
-custom_minimum_size = Vector2(320, 0)
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 mouse_filter = 2
 theme = SubResource("Theme_4pher")
 theme_override_styles/panel = SubResource("StyleBoxFlat_5xv5o")
 
 [node name="Split" type="VSplitContainer" parent="GUI/Splitter/Right" unique_id=670313949]
-custom_minimum_size = Vector2(300, 0)
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 split_offsets = PackedInt32Array(-250)
 split_offset = -250

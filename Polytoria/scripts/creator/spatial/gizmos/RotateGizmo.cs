@@ -195,8 +195,9 @@ public partial class RotateGizmo : Node, IGizmo
 			if (btn.ButtonIndex != MouseButton.Left) return;
 			if (btn.Pressed)
 			{
-				if (_currentAxis == RotateGizmoAxis.None) return;
 				if (!Visible) return;
+				UpdateAxis(rayOrigin, rayNormal, cameraNormal);
+				if (_currentAxis == RotateGizmoAxis.None) return;
 				_startRayOrigin = rayOrigin;
 				_startRayNormal = rayNormal;
 				DragStarted?.Invoke();
@@ -229,13 +230,26 @@ public partial class RotateGizmo : Node, IGizmo
 		base._Input(@event);
 	}
 
+	public bool IsDragging => _isMouseDragging;
+
+	public bool PickHandleAtPointer()
+	{
+		if (!Visible || Targets.Count == 0) return false;
+		Vector2 mousePos = GDCamera.GetViewport().GetMousePosition();
+		Vector3 rayOrigin = GDCamera.ProjectRayOrigin(mousePos);
+		Vector3 rayNormal = GDCamera.ProjectRayNormal(mousePos);
+		Vector3 cameraNormal = -GDCamera.GlobalBasis.Column2;
+		UpdateAxis(rayOrigin, rayNormal, cameraNormal);
+		return _currentAxis != RotateGizmoAxis.None;
+	}
+
 	private void RedrawGizmo()
 	{
 		if (Targets.Count == 0) return;
 		if (!Visible) return;
 
 		Transform3D pform = Gizmos.GetCenterPivot([.. Targets]);
-		float gizmoScale = pform.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f;
+		float gizmoScale = pform.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f * Gizmos.GizmoSizeMul;
 		Vector3 pScale = new(gizmoScale, gizmoScale, gizmoScale);
 
 		for (int i = 0; i < 3; i++)
@@ -273,7 +287,7 @@ public partial class RotateGizmo : Node, IGizmo
 	private void UpdateAxis(Vector3 rayOrigin, Vector3 rayNormal, Vector3 cameraNormal)
 	{
 		Transform3D pivot = Gizmos.GetCenterPivot([.. Targets]);
-		_gizmoScale = pivot.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f;
+		_gizmoScale = pivot.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f * Gizmos.GizmoSizeMul;
 
 		float colD = 1e20f;
 		int colAxis = -1;
@@ -291,7 +305,7 @@ public partial class RotateGizmo : Node, IGizmo
 				hitPosition = pivot.XformInv(hitPosition).Abs();
 				int minAxis = (int)hitPosition.MinAxisIndex();
 
-				if (hitPosition[minAxis] < _gizmoScale * GizmoRingHalfWidth)
+				if (hitPosition[minAxis] < _gizmoScale * GizmoRingHalfWidth * Gizmos.GrabRadiusMul)
 				{
 					colAxis = minAxis;
 				}
@@ -315,7 +329,7 @@ public partial class RotateGizmo : Node, IGizmo
 
 				if (cameraNormal.Dot(rDir) <= 0.005f)
 				{
-					if (dist > _gizmoScale * (Gizmos.GizmoCircleSize - GizmoRingHalfWidth) && dist < _gizmoScale * (Gizmos.GizmoCircleSize + GizmoRingHalfWidth))
+					if (dist > _gizmoScale * (Gizmos.GizmoCircleSize - GizmoRingHalfWidth * Gizmos.GrabRadiusMul) && dist < _gizmoScale * (Gizmos.GizmoCircleSize + GizmoRingHalfWidth * Gizmos.GrabRadiusMul))
 					{
 						float d = rayOrigin.DistanceTo(result2.Value);
 

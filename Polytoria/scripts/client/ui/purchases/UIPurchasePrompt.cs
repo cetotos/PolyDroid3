@@ -29,15 +29,49 @@ public partial class UIPurchasePrompt : Control
 
 	public override void _Ready()
 	{
-		_purchaseButton.Pressed += OnPurchase;
-		_cancelButton.Pressed += OnCancel;
+		Hook();
 		base._Ready();
+	}
+
+	public override void _EnterTree()
+	{
+		if (IsNodeReady())
+		{
+			Hook();
+		}
+		base._EnterTree();
 	}
 
 	public override void _ExitTree()
 	{
-		_iconImg?.ResourceLoaded -= OnIconImgLoaded;
+		Unhook();
 		base._ExitTree();
+	}
+
+	private bool _hooked;
+
+	private void Hook()
+	{
+		if (_hooked) return;
+		_hooked = true;
+		_purchaseButton.Pressed += OnPurchase;
+		_cancelButton.Pressed += OnCancel;
+		if (_iconImg != null)
+		{
+			_iconImg.ResourceLoaded += OnIconImgLoaded;
+		}
+	}
+
+	private void Unhook()
+	{
+		if (!_hooked) return;
+		_hooked = false;
+		_purchaseButton.Pressed -= OnPurchase;
+		_cancelButton.Pressed -= OnCancel;
+		if (_iconImg != null)
+		{
+			_iconImg.ResourceLoaded -= OnIconImgLoaded;
+		}
 	}
 
 	private void OnPurchase()

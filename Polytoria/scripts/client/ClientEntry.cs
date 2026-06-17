@@ -19,6 +19,7 @@ using Polytoria.Datamodel;
 using Polytoria.Datamodel.Services;
 using Polytoria.Schemas.API;
 using Polytoria.Shared;
+using Polytoria.Utils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -41,9 +42,11 @@ public sealed partial class ClientEntry : Node3D
 	public bool IsContained = false;
 	public bool IsNetEssentialsReady { get; private set; } = false;
 	private readonly List<int> _clientProcesses = [];
+	private int _localServerPid = -1;
 	public bool IsSoloTest = false;
 
-	public int TestUserID = 1144;
+	public int TestUserID = System.Random.Shared.Next(100000, 999999);
+	public string TestUsername = "";
 	public int TestClientCount = 0;
 	public bool TestModeReady = false;
 
@@ -65,12 +68,65 @@ public sealed partial class ClientEntry : Node3D
 
 	public async void Entry(ClientEntryData? data = null)
 	{
-		// Wait process frame for scene to be ready
+		try
+		{
+			await EntryInner(data);
+		}
+		catch (Polytoria.Shared.RenderingDeviceSwitcher.SwitchingRenderingDeviceException)
+		{
+		}
+		catch (Exception ex)
+		{
+			PT.PrintErr("ClientEntry.Entry crashed: ", ex);
+		}
+	}
+
+	private async System.Threading.Tasks.Task EntryInner(ClientEntryData? data)
+	{
 		await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+		if (XRBootstrap.IsActive)
+		{
+			SetupVRRig();
+		}
+
+		{
+			string savedName = UsernameStore.Username?.Trim() ?? "";
+			int savedId = UsernameStore.UserId;
+			if (!string.IsNullOrWhiteSpace(savedName))
+			{
+				TestUsername = savedName;
+				if (savedId == 0)
+				{
+					try
+					{
+						APIUserInfo info = await PolyAPI.FindUserByUsername(savedName);
+						if (info.Id > 0)
+						{
+							savedId = info.Id;
+							UsernameStore.UserId = info.Id;
+						}
+					}
+					catch (Exception ex)
+					{
+						PT.PrintErr($"username resolve at game start failed: {ex.Message}");
+					}
+				}
+			}
+			if (savedId > 0)
+			{
+				TestUserID = savedId;
+			}
+		}
 
 		Stopwatch sw = new();
 		sw.Start();
 		Dictionary<string, string> cmdargs = Globals.ReadCmdArgs();
+
+		if (Globals.IsServerBuild)
+		{
+			Polytoria.Shared.AssetLoaders.AssetLoader.Singleton.UseAssetLoader = false;
+		}
 
 		bool isClient = false;
 		bool isServer = false;
@@ -107,7 +163,7 @@ public sealed partial class ClientEntry : Node3D
 			TestUserID = int.Parse(testUserID);
 		}
 #endif
-		networkMode ??= "client";
+		networkMode ??= Globals.IsServerBuild ? "server" : "client";
 
 		if (networkMode == "server")
 		{
@@ -118,15 +174,26 @@ public sealed partial class ClientEntry : Node3D
 			isClient = true;
 		}
 
+		string? directConnectAddress = null;
+		int? directConnectPort = null;
+
 		if (data != null)
 		{
 			isClient = !data.Value.TestIsServer ?? true;
 			isServer = data.Value.TestIsServer ?? false;
 #if ALLOW_SELFHOST
 			worldPath = data.Value.TestWorldPath;
-			TestUserID = data.Value.TestUserID ?? 1144;
+			TestUserID = data.Value.TestUserID ?? TestUserID;
 			debugID = data.Value.TestDebugID ?? debugID;
 			port = data.Value.ConnectPort ?? port;
+			if (data.Value.TestEntryPath != null)
+			{
+				pathEntry = data.Value.TestEntryPath;
+			}
+			if (data.Value.TestIsSolo == true)
+			{
+				IsSoloTest = true;
+			}
 
 			if (data.Value.ConnectAddress != null)
 			{
@@ -136,6 +203,13 @@ public sealed partial class ClientEntry : Node3D
 			if (data.Value.Token != null)
 			{
 				token = data.Value.Token;
+			}
+			directConnectAddress = data.Value.ConnectAddress;
+			directConnectPort = data.Value.ConnectPort;
+			_localServerPid = data.Value.TestServerPid ?? -1;
+			if (_localServerPid > 0)
+			{
+				Globals.BeforeQuit += KillLocalServer;
 			}
 		}
 
@@ -197,7 +271,6 @@ public sealed partial class ClientEntry : Node3D
 		};
 		AddChild(settings, true, InternalMode.Front);
 
-		// Use init flow in case it can be stopped by Rendering device switcher
 		settings.Init();
 
 		AssetLoader.Singleton.MaxConcurrentRequests = ClientSettingsService.Instance.Get<int>(SharedSettingKeys.Advanced.AssetQueue);
@@ -240,6 +313,8 @@ public sealed partial class ClientEntry : Node3D
 		Root.Setup();
 		PT.Print($"World setup in {sw.ElapsedMilliseconds}ms");
 
+		Polytoria.Client.Rendering.RTReflectionIntegration.Install(Root);
+
 #if CREATOR
 		// Set creator token for testing (used for loading unapproved assets made by the user)
 		if (ctoken != null)
@@ -257,11 +332,16 @@ public sealed partial class ClientEntry : Node3D
 				// null out path entry if null
 				pathEntry = null;
 			}
-			FreeLook freeLook = new() { Name = "FreeLook" };
-			Root.GDNode.AddChild(freeLook, false, @internal: Node.InternalMode.Back);
 
-			freeLook.GlobalPosition = new(0, 2, -4);
-			freeLook.RotationDegrees = new(-25, 180, 0);
+			bool isMobileSoloHost = Globals.IsMobileBuild && IsSoloTest;
+			FreeLook? freeLook = null;
+			if (!isMobileSoloHost)
+			{
+				freeLook = new() { Name = "FreeLook" };
+				Root.GDNode.AddChild(freeLook, false, @internal: Node.InternalMode.Back);
+				freeLook.GlobalPosition = new(0, 2, -4);
+				freeLook.RotationDegrees = new(-25, 180, 0);
+			}
 
 			sw.Restart();
 
@@ -282,12 +362,15 @@ public sealed partial class ClientEntry : Node3D
 				}
 				PT.Print("World Loaded!");
 			}
-			Root.Environment.CameraOverride = freeLook;
+			if (freeLook != null)
+			{
+				Root.Environment.CameraOverride = freeLook;
+			}
 
 			PT.Print($"World loaded in {sw.ElapsedMilliseconds}ms");
 		}
 
-		if (IsSoloTest && !isSubWorld)
+		if (IsSoloTest && !isSubWorld && !Globals.IsMobileBuild)
 		{
 			for (int i = 1; i <= nPlr; i++)
 			{
@@ -322,7 +405,66 @@ public sealed partial class ClientEntry : Node3D
 
 		if (isServer)
 		{
-			if (token != null)
+			if (token == null)
+			{
+#if ALLOW_SELFHOST
+				if (IsSoloTest)
+				{
+					try
+					{
+						networkService.CreateServer(port);
+						if (DebugAgent != null)
+							await DebugAgent.SendServerReady();
+						if (Globals.IsMobileBuild)
+						{
+							networkService.CreateLocalServerPlayer(TestUserID, TestUsername);
+						}
+					}
+					catch (Exception ex)
+					{
+						GD.PushError(ex);
+						OS.Alert("Local host start failure");
+						Globals.Singleton.Quit(true);
+					}
+				}
+				else
+#endif
+				{
+					int? childIndex = PlacesServer.ParseChildArg();
+					if (childIndex.HasValue)
+					{
+						try
+						{
+							int hostPort = PlacesServer.FirstHostPort + (childIndex.Value - 1);
+							string? placePath = PlacesServer.GetPlaceFilePath(childIndex.Value);
+							if (placePath == null)
+							{
+								PT.PrintErr($"Server child #{childIndex.Value}: no .poly at that index");
+								Globals.Singleton.Quit();
+								return;
+							}
+							PlaceMeta meta = PlacesServer.GetPlaceMetaForFile(placePath);
+							networkService.ServerCreatorName = meta.CreatorName;
+							await DatamodelLoader.LoadWorldFile(Root, placePath, null);
+							networkService.CreateServer(hostPort);
+							PlacesServer.WritePlayerCount(placePath, 0);
+							string capturedPath = placePath;
+							Root.Players.PlayerAdded.Connect((_) => PlacesServer.WritePlayerCount(capturedPath, Root.Players.PeerIDToPlayer.Count));
+							Root.Players.PlayerRemoved.Connect((_) => PlacesServer.WritePlayerCount(capturedPath, Root.Players.PeerIDToPlayer.Count));
+							Globals.BeforeQuit += () => PlacesServer.WritePlayerCount(capturedPath, 0);
+							Timer countTimer = new() { WaitTime = 5, Autostart = true };
+							countTimer.Timeout += () => PlacesServer.WritePlayerCount(capturedPath, Root.Players.PeerIDToPlayer.Count);
+							AddChild(countTimer);
+						}
+						catch (Exception ex)
+						{
+							PT.PrintErr(ex.ToString());
+							Globals.Singleton.Quit();
+						}
+					}
+				}
+			}
+			else
 			{
 				networkService.IsProd = true;
 				PT.Print("Server Authenticating...");
@@ -368,29 +510,9 @@ public sealed partial class ClientEntry : Node3D
 				}
 				catch (Exception ex)
 				{
-					// Error bruh
 					PT.PrintErr(ex.ToString());
 					Globals.Singleton.Quit();
 				}
-			}
-			else
-			{
-#if ALLOW_SELFHOST
-				try
-				{
-					// Start local server
-					PT.Print("Starting local server on " + port);
-					networkService.CreateServer(port);
-					if (DebugAgent != null)
-						await DebugAgent.SendServerReady();
-				}
-				catch (Exception ex)
-				{
-					GD.PushError(ex);
-					OS.Alert("Local host start failure");
-					Globals.Singleton.Quit(true);
-				}
-#endif
 			}
 		}
 
@@ -399,7 +521,6 @@ public sealed partial class ClientEntry : Node3D
 			if (token != null)
 			{
 				PT.Print("Connecting to Polytoria...");
-				// Request auth to server
 				PolyAuthAPI.SetAuthToken(token);
 
 				try
@@ -427,14 +548,51 @@ public sealed partial class ClientEntry : Node3D
 					networkService.DisconnectSelf(ex.Message, NetworkService.DisconnectionCodeEnum.ConnectionFailure);
 				}
 			}
+			else if (directConnectAddress != null)
+			{
+				int dport = directConnectPort ?? PlacesServer.FirstHostPort;
+				networkService.IsProd = false;
+				try
+				{
+					networkService.CreateClient(directConnectAddress, dport);
+				}
+				catch (Exception ex)
+				{
+					PT.PrintErr(ex);
+					networkService.DisconnectSelf(ex.Message, NetworkService.DisconnectionCodeEnum.ConnectionFailure);
+				}
+			}
 #if ALLOW_SELFHOST
 			else
 			{
-				// Local testing
 				networkService.CreateClient(connectAddress, port);
 			}
 #endif
 		}
+	}
+
+	private void SetupVRRig()
+	{
+		var origin = new XROrigin3D();
+		AddChild(origin);
+		var cam = new XRCamera3D { Current = true };
+		origin.AddChild(cam);
+
+		var panel = new VRPanel();
+		AddChild(panel);
+		panel.SetCamera(cam);
+
+		AddChild(new VRKeyboard(panel.Viewport, cam));
+
+		var bar = new VRBottomBar();
+		AddChild(bar);
+		bar.SetCamera(cam);
+
+		var right = new XRController3D { Tracker = "right_hand" };
+		origin.AddChild(right);
+		right.AddChild(new XRPointer(right, panel));
+
+		XRBootstrap.LoadingRig = origin;
 	}
 
 	private async void PollServerStatus()
@@ -495,21 +653,25 @@ public sealed partial class ClientEntry : Node3D
 
 	public void LeaveGame()
 	{
-		if (OS.HasFeature("mobile-ui"))
+		if (IsContained)
 		{
-			Globals.Singleton.SwitchEntry(Globals.AppEntryEnum.MobileUI);
+			LeaveGameRequested?.Invoke();
+			return;
+		}
+
+		Globals.AppEntryEnum target;
+		if (Globals.ReturnEntryAfterLeave is Globals.AppEntryEnum retEntry)
+		{
+			Globals.ReturnEntryAfterLeave = null;
+			target = retEntry;
 		}
 		else
 		{
-			if (!IsContained)
-			{
-				Globals.Singleton.Quit();
-			}
-			else
-			{
-				LeaveGameRequested?.Invoke();
-			}
+			target = Polytoria.Shared.XRBootstrap.IsActive
+				? Globals.AppEntryEnum.MainMenu
+				: Globals.AppEntryEnum.MobileUI;
 		}
+		Globals.Singleton.SwitchEntry(target);
 	}
 
 	public void LocalTestStartClient(int port = 24221)
@@ -544,15 +706,38 @@ public sealed partial class ClientEntry : Node3D
 		// Ignore rendering method switcher flag, use the same one as creator's
 		args.Add("-rmswignore");
 
-		int procID = OS.CreateProcess(exePath, [.. args]);
+		int procID = Polytoria.Shared.ProcessUtil.Spawn(exePath, args);
 
 		_clientProcesses.Add(procID);
 
 		PT.Print($"Started new client process with ID {procID}");
 	}
 
+	private void KillLocalServer()
+	{
+		if (_localServerPid <= 0)
+		{
+			return;
+		}
+		int pid = _localServerPid;
+		_localServerPid = -1;
+		Globals.BeforeQuit -= KillLocalServer;
+		try
+		{
+			if (OS.IsProcessRunning(pid))
+			{
+				OS.Kill(pid);
+			}
+		}
+		catch (Exception ex)
+		{
+			PT.PrintErr("Failed to stop local server: ", ex);
+		}
+	}
+
 	public override void _ExitTree()
 	{
+		KillLocalServer();
 		if (!Globals.IsExiting)
 		{
 			Root.ForceDelete();
@@ -568,7 +753,10 @@ public sealed partial class ClientEntry : Node3D
 		public string? Token;
 		public int? TestUserID;
 		public bool? TestIsServer;
+		public bool? TestIsSolo;
 		public string? TestWorldPath;
+		public string? TestEntryPath;
 		public string? TestDebugID;
+		public int? TestServerPid;
 	}
 }

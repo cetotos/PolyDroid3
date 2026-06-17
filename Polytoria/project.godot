@@ -28,13 +28,13 @@ warnings/check_invalid_track_paths=false
 
 [application]
 
-config/name="Polytoria"
+config/name="PolyDroid 3"
 config/version="2.0.16"
 run/main_scene="uid://c2tql65t73ak5"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="PolytoriaClient"
 config/quit_on_go_back=false
-config/features=PackedStringArray("4.6", "C#", "Forward Plus")
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 run/flush_stdout_on_print=true
 boot_splash/bg_color=Color(0.09803922, 0.09803922, 0.09803922, 1)
 boot_splash/show_image=false
@@ -50,11 +50,18 @@ AssetLoader="*uid://rdicloyxgx18"
 WebAssetLoader="*uid://0g13so6g55p0"
 AppCloseDimmer="*res://scripts/shared/AppCloseDimmer.cs"
 
+[debug]
+
+file_logging/enable_file_logging=true
+
 [display]
 
 window/subwindows/embed_subwindows=false
-window/handheld/orientation=1
 window/vsync/vsync_mode=0
+window/subwindows/embed_subwindows.creator=true
+window/handheld/orientation.creator=0
+window/stretch/mode.creator="canvas_items"
+window/stretch/aspect.creator="expand"
 
 [dotnet]
 
@@ -448,7 +455,6 @@ jolt_physics_3d/limits/max_bodies=131070
 
 occlusion_culling/bvh_build_quality=0
 textures/canvas_textures/default_texture_filter=2
-rendering_device/driver.windows="d3d12"
 textures/vram_compression/import_etc2_astc=true
 lights_and_shadows/directional_shadow/size.mobile=512
 reflections/sky_reflections/ggx_samples.mobile=2
@@ -458,3 +464,10 @@ environment/defaults/default_clear_color=Color(0.15, 0.15, 0.15, 1)
 occlusion_culling/use_occlusion_culling=true
 mesh_lod/lod_change/threshold_pixels=0.0
 lights_and_shadows/positional_shadow/atlas_size.mobile=512
+
+[xr]
+
+openxr/foveation_level.mobile=3
+openxr/foveation_dynamic.mobile=true
+openxr/enabled.xr=true
+shaders/enabled.xr=true

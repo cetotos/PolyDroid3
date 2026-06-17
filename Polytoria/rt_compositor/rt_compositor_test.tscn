@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bukspcvt05vci"]
+
+[ext_resource type="Script" uid="uid://bfhpls1xus63d" path="res://rt_compositor/RTCompositorTest.cs" id="1"]
+
+[node name="RTCompositorTest" type="Node3D" unique_id=1820178648]
+script = ExtResource("1")

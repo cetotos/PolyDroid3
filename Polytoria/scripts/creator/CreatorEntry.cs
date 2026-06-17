@@ -41,6 +41,26 @@ public partial class CreatorEntry : Node
 
 		GetViewport().GuiEmbedSubwindows = true;
 
+		if (Globals.IsMobileBuild)
+		{
+			DisplayServer.WindowSetMode(DisplayServer.WindowMode.Windowed);
+			DisplayServer.ScreenSetOrientation(DisplayServer.ScreenOrientation.Landscape);
+			GetTree().Root.ContentScaleMode = Window.ContentScaleModeEnum.CanvasItems;
+			GetTree().Root.ContentScaleAspect = Window.ContentScaleAspectEnum.Expand;
+			GetTree().Root.ContentScaleFactor = 2.25f;
+			AddChild(new Polytoria.Shared.Misc.TouchLongPressToRightClick { Name = "TouchLongPressToRightClick" });
+			AddChild(new Polytoria.Creator.UI.TouchSplitResize { Name = "TouchSplitResize" });
+
+			if (Engine.HasSingleton("PolytoriaPermissions"))
+			{
+				GodotObject perms = Engine.GetSingleton("PolytoriaPermissions");
+				if (!(bool)perms.Call("hasAllFilesAccess"))
+				{
+					perms.Call("requestAllFilesAccess");
+				}
+			}
+		}
+
 		// Open project
 		cmdargs.TryGetValue("proj", out string? creatorFilePath);
 		if (creatorFilePath != null)

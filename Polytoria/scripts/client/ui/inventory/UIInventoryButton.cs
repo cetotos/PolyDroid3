@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 using Godot;
+using Polytoria.Shared;
 
 namespace Polytoria.Client.UI;
 
@@ -13,6 +14,11 @@ public partial class UIInventoryButton : Button
 	public override void _Ready()
 	{
 		Toggled += OnToggled;
+
+		if (XRBootstrap.IsActive)
+		{
+			Visible = true;
+		}
 	}
 
 	internal void OnToggled(bool toggleOn)

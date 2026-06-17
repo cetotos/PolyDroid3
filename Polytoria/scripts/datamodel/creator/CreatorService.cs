@@ -63,10 +63,24 @@ public sealed partial class CreatorService : Node, IScriptObject
 		};
 		AddChild(Interface);
 
-		string polyFolder = Path.Join(System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments), PolytoriaFolderName);
-		if (!Directory.Exists(polyFolder))
+		try
 		{
-			Directory.CreateDirectory(polyFolder);
+			string docs;
+			try { docs = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments); }
+			catch { docs = ""; }
+			if (string.IsNullOrEmpty(docs))
+			{
+				docs = ProjectSettings.GlobalizePath("user://");
+			}
+			string polyFolder = Path.Join(docs, PolytoriaFolderName);
+			if (!Directory.Exists(polyFolder))
+			{
+				Directory.CreateDirectory(polyFolder);
+			}
+		}
+		catch (Exception ex)
+		{
+			PT.PrintErr($"CreatorService: failed to ensure documents folder: {ex}");
 		}
 	}
 
@@ -556,13 +570,50 @@ public sealed partial class CreatorService : Node, IScriptObject
 		string tempPath = Path.GetTempPath();
 		string placeFilePath = tempPath.PathJoin("pt_test_" + new DateTimeOffset(DateTime.Now).Millisecond + ".zip");
 
-		await PackedFormat.PackProjectToFile(projectPath, placeFilePath, Interface.LoadOverlay.CreateProgressReporter("Starting local test..."));
+		await PackedFormat.PackProjectToFile(projectPath, placeFilePath, Interface.LoadOverlay.CreateProgressReporter("Starting local test..."), System.IO.Compression.CompressionLevel.NoCompression);
 		Interface.LoadOverlay?.Hide();
 		StartLocalTestServer(placeFilePath, entryPath, debugID, port, isSubplace, spawnPos);
 	}
 
 	private void StartLocalTestServer(string placeFilePath, string entryPath, string debugID, int port, bool isSubplace = false, Vector3? spawnPos = null)
 	{
+		if (Globals.IsMobileBuild)
+		{
+			const string SharedDir = "/storage/emulated/0/Polytoria";
+			const string SharedPoly = SharedDir + "/test.poly";
+
+			try
+			{
+				Directory.CreateDirectory(SharedDir);
+				File.Copy(placeFilePath, SharedPoly, overwrite: true);
+			}
+			catch (Exception ex)
+			{
+				PT.PrintErr($"Local test: failed to stage .poly to shared storage ({SharedPoly}): {ex.Message}");
+				Interface.PopupAlert($"Client test failed! Can't access storage. Grant 'All files access' to the Creator in settings.");
+				return;
+			}
+
+			Dictionary<string, string?> qparams = new()
+			{
+				["world"] = SharedPoly,
+				["entry"] = entryPath,
+				["debug"] = debugID,
+				["port"] = port.ToString(),
+			};
+			string query = string.Join("&", qparams
+				.Where(kv => !string.IsNullOrEmpty(kv.Value))
+				.Select(kv => $"{kv.Key}={Uri.EscapeDataString(kv.Value!)}"));
+			string uri = $"polytoria://test?{query}";
+			Error err = OS.ShellOpen(uri);
+			if (err != Error.Ok)
+			{
+				PT.PrintErr($"shell_open returned {err} for {uri}");
+				Interface.PopupAlert("Client test failed! Polytoria Client app missing.");
+			}
+			return;
+		}
+
 		string exePath = OS.GetExecutablePath();
 
 		List<string> args = ["--log-file", "user://logs/server.log", "-solo", placeFilePath, "-entry", entryPath, "-debug", $"127.0.0.1:{DebugServer.Port}", "-debug-id", debugID, "-port", port.ToString()];
@@ -604,7 +655,7 @@ public sealed partial class CreatorService : Node, IScriptObject
 
 		LocalTestWorlds.Add(placeFilePath);
 
-		int procID = OS.CreateProcess(exePath, [.. args]);
+		int procID = Polytoria.Shared.ProcessUtil.Spawn(exePath, args);
 		PT.Print("Starting server with args: ", string.Join(" ", args));
 
 		LocalTestProcesses.Add(procID);

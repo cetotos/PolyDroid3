@@ -1,5 +1,7 @@
 [gd_scene format=3 uid="uid://4jodg5v8ee3v"]
 
+[ext_resource type="Script" path="res://scripts/mobile/ui/components/home/ContinueRoot.cs" id="1_cnt0"]
+
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_xq0dv"]
 
 [sub_resource type="Theme" id="Theme_5xsir"]
@@ -7,6 +9,7 @@ PanelContainer/styles/panel = SubResource("StyleBoxEmpty_xq0dv")
 
 [node name="Continue" type="VBoxContainer" unique_id=765714448]
 theme_override_constants/separation = 8
+size_flags_vertical = 3
 
 [node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=2028167230]
 layout_mode = 2
@@ -25,13 +28,10 @@ mouse_filter = 1
 theme_override_font_sizes/font_size = 20
 text = "Continue Playing"
 
-[node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=854719316]
-custom_minimum_size = Vector2(0, 230)
+[node name="VBoxContainer2" type="GridContainer" parent="." unique_id=138479937]
 layout_mode = 2
-vertical_scroll_mode = 0
-
-[node name="HBoxContainer2" type="HBoxContainer" parent="ScrollContainer" unique_id=138479937]
-layout_mode = 2
-size_flags_vertical = 3
 theme = SubResource("Theme_5xsir")
-theme_override_constants/separation = 8
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 2
+script = ExtResource("1_cnt0")

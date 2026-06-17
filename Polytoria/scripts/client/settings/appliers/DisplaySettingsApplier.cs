@@ -77,11 +77,17 @@ public sealed partial class DisplaySettingsApplier : Node
 	private void ApplyUiScale()
 	{
 		float scale = ClientSettingsService.Instance.Get<float>(ClientSettingKeys.Display.UiScale);
-		float finalScale;
-		int screenId = DisplayServer.WindowGetCurrentScreen();
-		float osScale = DisplayServer.ScreenGetScale(screenId);
-		finalScale = scale * osScale;
-		GetTree().Root.ContentScaleFactor = finalScale;
+		float baseScale;
+		if (Globals.IsMobileBuild)
+		{
+			baseScale = Globals.MobileScale;
+		}
+		else
+		{
+			int screenId = DisplayServer.WindowGetCurrentScreen();
+			baseScale = DisplayServer.ScreenGetScale(screenId);
+		}
+		GetTree().Root.ContentScaleFactor = scale * baseScale;
 	}
 
 	private static int ResolveFpsCap(ISettingsContext settings)

@@ -8,7 +8,7 @@ namespace Polytoria.Client.UI.Touch;
 
 public partial class JoystickArea : InputFallbackBase
 {
-	[Export] public float MaxThumbstickDistance = 220f;
+	[Export] public float MaxThumbstickDistance = 150f;
 	[Export] public float Deadzone = 10f;
 	[Export(PropertyHint.Range, "0,1,0.01")] public float SprintThreshold = 0.9f;
 
@@ -29,6 +29,12 @@ public partial class JoystickArea : InputFallbackBase
 	public override void _Process(double delta)
 	{
 		if (!_dragging) { return; }
+
+		if (Polytoria.Shared.Globals.FreezeWorldInput)
+		{
+			SendInputEnd();
+			return;
+		}
 
 		Vector2 axis = GetThumbstickAxis();
 

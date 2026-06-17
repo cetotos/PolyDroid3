@@ -20,7 +20,7 @@ public partial class WebAssetLoader : Node
 
 	public static WebAssetLoader Singleton { get; private set; } = null!;
 
-	private const int MAX_CONCURRENT_REQUESTS = 1;
+	private const int MAX_CONCURRENT_REQUESTS = 8;
 
 	private readonly PTHttpClient _client = new();
 

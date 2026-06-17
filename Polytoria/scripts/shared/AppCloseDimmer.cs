@@ -18,6 +18,10 @@ public partial class AppCloseDimmer : Node
 
 	public static async Task Show()
 	{
+		if (Singleton == null) return;
+		Node? parent = Singleton.GetParent();
+		if (parent == null) return;
+
 		CanvasLayer layer = new()
 		{
 			Layer = 10000
@@ -30,9 +34,8 @@ public partial class AppCloseDimmer : Node
 		};
 		c.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 		layer.AddChild(c);
-		Singleton.GetParent().AddChild(layer);
+		parent.CallDeferred(Node.MethodName.AddChild, layer);
 
-		// Wait for post render if not in headless
 		if (RenderingServer.Singleton.GetRenderingDevice() != null)
 		{
 			await Singleton.ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);

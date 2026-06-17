@@ -999,9 +999,15 @@ public partial class NPC : Physical
 			UpdateScale = false
 		};
 
+		bool isLocalXR = Polytoria.Shared.XRBootstrap.IsActive
+			&& this is Player p && p.PeerID == Root.Network.LocalPeerID;
+		bool leftHandedXR = isLocalXR && Polytoria.Shared.VRSettings.LeftHanded;
+
 		if (Character != null)
 		{
-			Dynamic attachment = Character.GetAttachment(CharacterModel.CharacterAttachmentEnum.HandRight);
+			Dynamic attachment = Character.GetAttachment(leftHandedXR
+				? CharacterModel.CharacterAttachmentEnum.HandLeft
+				: CharacterModel.CharacterAttachmentEnum.HandRight);
 			attachment.GDNode.AddChild(_toolRemoteTransform, @internal: Node.InternalMode.Back);
 		}
 
@@ -1009,7 +1015,9 @@ public partial class NPC : Physical
 		// this is needed because GetPath doesn't update when it entered tree
 		await Globals.Singleton.WaitFrame();
 		_toolRemoteTransform.Position = new Vector3(0, 0, 0);
-		_toolRemoteTransform.RotationDegrees = new Vector3(0, -90, -90);
+		_toolRemoteTransform.RotationDegrees = isLocalXR
+			? new Vector3(-90, 0, 0)
+			: new Vector3(0, -90, -90);
 		_toolRemoteTransform.UpdateScale = false;
 		_toolRemoteTransform.RemotePath = _toolRemoteTransform.GetPathTo(tool.GDNode);
 	}

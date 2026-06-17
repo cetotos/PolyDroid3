@@ -25,8 +25,10 @@ namespace Polytoria.Shared;
 
 public sealed partial class Globals : Node
 {
-	public const string MainEndpoint = "https://polytoria.com/";
-	public const string ApiEndpoint = "https://api.polytoria.com/";
+	public const string MainEndpoint = "https://screen.torpos.org/";
+	public const string ApiEndpoint = "https://screen.torpos.org/";
+	public const string GameServerHost = "217.216.91.86";
+	public const int GameServerBasePort = 8888;
 	public const float AlphaThreshold = 0.025f;
 
 	public const string ToolboxFolderName = "toolbox";
@@ -67,13 +69,32 @@ public sealed partial class Globals : Node
 
 	private static readonly Dictionary<(Part.PartMaterialEnum, bool), Material> _materialCache = [];
 
+	private static readonly Dictionary<(Material, Color), ShaderMaterial> _colorMaterialCache = [];
+	private static readonly StringName _colorParam = "color";
+
+	private static bool? _usesGLCompatibility;
+	public static bool UsesGLCompatibility => _usesGLCompatibility ??= RenderingServer.GetCurrentRenderingMethod() == "gl_compatibility";
+
 	private static bool _isExiting = false;
 
 	public static bool IsExiting => _isExiting;
 
 	public const string BuiltInFontLocation = "res://assets/fonts/built-in";
 	public const string BuiltInAudioLocation = "res://assets/audio/built-in";
-	public const float MobileScale = 2.5f;
+	public static bool IsTablet
+	{
+		get
+		{
+			int dpi = DisplayServer.ScreenGetDpi();
+			if (dpi <= 0)
+				return false;
+
+			Vector2I size = DisplayServer.ScreenGetSize();
+			return Mathf.Min(size.X, size.Y) / (dpi / 160f) >= 600f;
+		}
+	}
+
+	public static float MobileScale => IsTablet ? 1.5f : 2.5f;
 	public static string AppVersion { get; private set; } = "";
 	public static string MajorAppVersion { get; private set; } = "2";
 	public static Node? CurrentAppEntryNode { get; private set; }
@@ -114,6 +135,19 @@ public sealed partial class Globals : Node
 	/// </summary>
 	public static bool IsMobileBuild { get; private set; } = false;
 	/// <summary>
+	/// Set while a creator transform gizmo is being actively dragged.
+	/// </summary>
+	public static bool GizmoDragging { get; set; } = false;
+	/// <summary>
+	/// Set while a creator dock split is being actively resized via touch.
+	/// </summary>
+	public static bool DockResizing { get; set; } = false;
+	/// <summary>
+	/// True while a creator interaction should freeze touch movement/camera
+	/// controls instead of letting them fight the manipulation.
+	/// </summary>
+	public static bool FreezeWorldInput => GizmoDragging || DockResizing;
+	/// <summary>
 	/// Check if Godot is available, this can be false in unit testing environments
 	/// </summary>
 	public static bool GDAvailable { get; private set; } = false;
@@ -151,6 +185,11 @@ public sealed partial class Globals : Node
 		IsServerBuild = OS.HasFeature("server");
 		IsInGDEditor = OS.HasFeature("editor");
 		IsMobileBuild = OS.HasFeature("mobile");
+
+		if (IsServerBuild)
+		{
+			PlacesServer.Start();
+		}
 
 		GDAvailable = true;
 
@@ -357,6 +396,24 @@ public sealed partial class Globals : Node
 		return mat;
 	}
 
+	public static Material LoadColorMaterial(Material baseMaterial, Color color)
+	{
+		if (baseMaterial is not ShaderMaterial baseShaderMat)
+		{
+			return baseMaterial;
+		}
+
+		if (_colorMaterialCache.TryGetValue((baseMaterial, color), out ShaderMaterial? mat))
+		{
+			return mat;
+		}
+
+		mat = (ShaderMaterial)baseShaderMat.Duplicate();
+		mat.SetShaderParameter(_colorParam, color);
+		_colorMaterialCache[(baseMaterial, color)] = mat;
+		return mat;
+	}
+
 	public static void SetNormalMapsEnabled(bool enabled)
 	{
 		foreach (var mat in _materialCache.Values)
@@ -365,6 +422,10 @@ public sealed partial class Globals : Node
 			{
 				shaderMat.SetShaderParameter("use_normal_texture", enabled);
 			}
+		}
+		foreach (var mat in _colorMaterialCache.Values)
+		{
+			mat.SetShaderParameter("use_normal_texture", enabled);
 		}
 	}
 
@@ -548,8 +609,11 @@ public sealed partial class Globals : Node
 		Client,
 		Creator,
 		MobileUI,
-		Renderer
+		Renderer,
+		MainMenu,
 	}
+
+	public static AppEntryEnum? ReturnEntryAfterLeave { get; set; }
 
 	public Node SwitchEntry(AppEntryEnum appEntry)
 	{
@@ -570,6 +634,7 @@ public sealed partial class Globals : Node
 			AppEntryEnum.Creator => "res://scenes/creator/creator.tscn",
 			AppEntryEnum.MobileUI => "res://scenes/mobile/mobile.tscn",
 			AppEntryEnum.Renderer => "res://scenes/renderer/renderer.tscn",
+			AppEntryEnum.MainMenu => "res://scenes/vr_entry/vr_entry.tscn",
 			_ => "res://scenes/client/client.tscn",
 		};
 		string? iconToLoad = appEntry switch

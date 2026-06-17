@@ -3,9 +3,7 @@
 [ext_resource type="Theme" uid="uid://dofh67vfwf6qe" path="res://resources/themes/mobile.tres" id="1_c7vr6"]
 [ext_resource type="Script" uid="uid://ug4m2u37khv0" path="res://scripts/mobile/ui/views/home/ViewHomePage.cs" id="2_12s5c"]
 [ext_resource type="Texture2D" uid="uid://wlrvgtw6qeuw" path="res://assets/textures/mobile/home/headerbg_color.png" id="3_syfjb"]
-[ext_resource type="PackedScene" uid="uid://cvv45fcrv7srk" path="res://scenes/mobile/components/home/friends.tscn" id="4_12s5c"]
 [ext_resource type="PackedScene" uid="uid://4jodg5v8ee3v" path="res://scenes/mobile/components/home/continue.tscn" id="5_xq0dv"]
-[ext_resource type="PackedScene" uid="uid://08fes6sp4lwp" path="res://scenes/mobile/components/home/feed.tscn" id="6_5xsir"]
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_syfjb"]
 viewport_path = NodePath("PlayerModel")
@@ -25,7 +23,6 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_right = -768.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_c7vr6")
@@ -109,14 +106,9 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_0s7as")
 layout_mode = 2
 theme_override_constants/separation = 16
 
-[node name="Friends" parent="ScrollContainer/VBoxContainer/PanelContainer/Layout" unique_id=116194665 instance=ExtResource("4_12s5c")]
-layout_mode = 2
-
 [node name="Continue" parent="ScrollContainer/VBoxContainer/PanelContainer/Layout" unique_id=1954925301 instance=ExtResource("5_xq0dv")]
 layout_mode = 2
-
-[node name="Feed" parent="ScrollContainer/VBoxContainer/PanelContainer/Layout" unique_id=127152134 instance=ExtResource("6_5xsir")]
-layout_mode = 2
+size_flags_vertical = 3
 
 [node name="PlayerModel" type="SubViewport" parent="." unique_id=252364737]
 own_world_3d = true

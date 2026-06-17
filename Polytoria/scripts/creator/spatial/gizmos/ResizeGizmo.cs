@@ -135,8 +135,9 @@ public partial class ResizeGizmo : Node, IGizmo
 			if (btn.ButtonIndex != MouseButton.Left) return;
 			if (btn.Pressed)
 			{
-				if (_currentAxis == ResizeGizmoAxis.None) return;
 				if (!Visible) return;
+				UpdateAxis(rayOrigin, rayNormal);
+				if (_currentAxis == ResizeGizmoAxis.None) return;
 				_startRayOrigin = rayOrigin;
 				_startRayNormal = rayNormal;
 				DragStarted?.Invoke();
@@ -168,6 +169,18 @@ public partial class ResizeGizmo : Node, IGizmo
 			}
 		}
 		base._Input(@event);
+	}
+
+	public bool IsDragging => _isMouseDragging;
+
+	public bool PickHandleAtPointer()
+	{
+		if (!Visible || Targets.Count == 0) return false;
+		Vector2 mousePos = GDCamera.GetViewport().GetMousePosition();
+		Vector3 rayOrigin = GDCamera.ProjectRayOrigin(mousePos);
+		Vector3 rayNormal = GDCamera.ProjectRayNormal(mousePos);
+		UpdateAxis(rayOrigin, rayNormal);
+		return _currentAxis != ResizeGizmoAxis.None;
 	}
 
 	private void RedrawGizmo()
@@ -202,7 +215,7 @@ public partial class ResizeGizmo : Node, IGizmo
 				Origin = worldCenter + targetRotation.Xform(localOffsets[i])
 			};
 
-			float gizmoScale = gizmoTransform.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f;
+			float gizmoScale = gizmoTransform.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f * Gizmos.GizmoSizeMul;
 			gizmoTransform.Basis = gizmoTransform.Basis.Scaled(new Vector3(gizmoScale, gizmoScale, gizmoScale));
 
 			_resizeGizmoInstance[i].GlobalTransform = gizmoTransform;
@@ -222,7 +235,7 @@ public partial class ResizeGizmo : Node, IGizmo
 	private void UpdateAxis(Vector3 rayOrigin, Vector3 rayNormal)
 	{
 		Transform3D pivot = Gizmos.GetCenterPivot([.. Targets]);
-		_gizmoScale = pivot.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f;
+		_gizmoScale = pivot.Origin.DistanceTo(GDCamera.GlobalPosition) * 0.12f * Gizmos.GizmoSizeMul;
 
 		float colD = 1e20f;
 		int colAxis = -1;
@@ -230,7 +243,7 @@ public partial class ResizeGizmo : Node, IGizmo
 		for (int i = 0; i < 6; i++)
 		{
 			Vector3 grabberPos = _resizeGizmoInstance[i].GlobalPosition;
-			float grabberRadius = _gizmoScale * Gizmos.GizmoArrowSize;
+			float grabberRadius = _gizmoScale * Gizmos.GizmoArrowSize * Gizmos.GrabRadiusMul;
 
 			Vector3[] result = Geometry3D.SegmentIntersectsSphere(rayOrigin, rayOrigin + rayNormal * Gizmos.MaxZ, grabberPos, grabberRadius);
 

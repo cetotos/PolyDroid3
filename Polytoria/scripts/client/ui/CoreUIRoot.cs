@@ -64,13 +64,6 @@ public partial class CoreUIRoot : CanvasLayer
 		HealthBar.CoreUI = this;
 		PurchasePrompt.CoreUI = this;
 
-#if DEBUG && !EXPORTDEBUG
-		if (OS.HasFeature("executor"))
-		{
-			AddChild(Globals.CreateInstanceFromScene<Node>("res://scenes/client/ui/executor/executor.tscn"));
-		}
-#endif
-
 		Service.CtrlLockCursorChanged.Connect(OnCtrlLockCursorChanged);
 
 		base._EnterTree();
@@ -135,6 +128,29 @@ public partial class CoreUIRoot : CanvasLayer
 		}
 		var dpiTexture = GD.Load<DpiTexture>(CtrlLockCursorsFilepath + "/" + filename);
 		CtrlLockCursor.Texture = dpiTexture;
+	}
+
+	public override void _Ready()
+	{
+		base._Ready();
+		if (Polytoria.Shared.XRBootstrap.IsActive)
+		{
+			CallDeferred(nameof(ReparentToVRPanel));
+		}
+	}
+
+	private async void ReparentToVRPanel()
+	{
+		Polytoria.Shared.VRPanel? panel = Polytoria.Shared.VRPanel.Instance;
+		int waited = 0;
+		while (panel == null && waited < 600)
+		{
+			await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+			panel = Polytoria.Shared.VRPanel.Instance;
+			waited++;
+		}
+		if (panel == null) return;
+		panel.AbsorbCanvasLayer(this);
 	}
 
 	public override void _UnhandledInput(InputEvent @event)

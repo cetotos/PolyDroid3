@@ -137,6 +137,26 @@ public static class SharedSettingsRegistry
 				}
 			},
 			{
+				SharedSettingKeys.Graphics.GraphicsApi,
+				new SettingDef<GraphicsApiOption>
+				{
+					Key = SharedSettingKeys.Graphics.GraphicsApi,
+					SectionKey = "graphics",
+					Label = "Graphics API",
+					Description = "Renderer API. Compability renderer forces OpenGL. Direct3D is Windows only.",
+					ValueKind = SettingValueKind.Enum,
+					ControlKind = SettingControlKind.Dropdown,
+					DefaultValue = GraphicsApiOption.Auto,
+					RequiresRestart = true,
+					Options =
+					[
+						new() { Value = GraphicsApiOption.Auto, Label = "Auto" },
+						new() { Value = GraphicsApiOption.Vulkan, Label = "Vulkan" },
+						new() { Value = GraphicsApiOption.Direct3D12, Label = "Direct3D 12" },
+					]
+				}
+			},
+			{
 				SharedSettingKeys.Graphics.RenderScale,
 				new SettingDef<float>
 				{
@@ -230,6 +250,8 @@ public static class SharedSettingsRegistry
 					SectionKey = "post_processing",
 					Label = "SSAO",
 					Description = "Toggle ambient occlusion effect.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.RtReflections) && ctx.Get<bool>(SharedSettingKeys.RayTracing.GlobalIllumination) ? "Disabled while ray traced Global Illumination is enabled." : null,
+					AutoOffWhenDisabled = true,
 					ValueKind = SettingValueKind.Bool,
 					ControlKind = SettingControlKind.Toggle,
 					DefaultValue = true
@@ -243,6 +265,8 @@ public static class SharedSettingsRegistry
 					SectionKey = "post_processing",
 					Label = "SSR",
 					Description = "Toggle screen-space reflections.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.RtReflections) && ctx.Get<bool>(SharedSettingKeys.RayTracing.Reflections) ? "Disabled while ray traced Reflections are enabled." : null,
+					AutoOffWhenDisabled = true,
 					ValueKind = SettingValueKind.Bool,
 					ControlKind = SettingControlKind.Toggle,
 					DefaultValue = true
@@ -256,6 +280,81 @@ public static class SharedSettingsRegistry
 					SectionKey = "post_processing",
 					Label = "SSIL",
 					Description = "Toggle screen-space illuminated lighting.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.RtReflections) && ctx.Get<bool>(SharedSettingKeys.RayTracing.GlobalIllumination) ? "Disabled while ray traced Global Illumination is enabled." : null,
+					AutoOffWhenDisabled = true,
+					ValueKind = SettingValueKind.Bool,
+					ControlKind = SettingControlKind.Toggle,
+					DefaultValue = true
+				}
+			},
+			{
+				SharedSettingKeys.PostProcessing.RtReflections,
+				new SettingDef<bool>
+				{
+					Key = SharedSettingKeys.PostProcessing.RtReflections,
+					SectionKey = "ray_tracing",
+					Label = "Enable Ray Tracing (Experimental)",
+					Description = "Toggle ray tracing. Requires Vulkan as the API, the Standard renderer, and a beefy GPU capable of hardware ray tracing.",
+					ValueKind = SettingValueKind.Bool,
+					ControlKind = SettingControlKind.Toggle,
+					RequiresRestart = true,
+					DefaultValue = false
+				}
+			},
+			{
+				SharedSettingKeys.RayTracing.GlobalIllumination,
+				new SettingDef<bool>
+				{
+					Key = SharedSettingKeys.RayTracing.GlobalIllumination,
+					SectionKey = "ray_tracing",
+					Label = "Global Illumination",
+					Description = "Toggle ray traced indirect lighting.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.RtReflections) ? null : "Requires Ray Tracing to be enabled.",
+					ValueKind = SettingValueKind.Bool,
+					ControlKind = SettingControlKind.Toggle,
+					DefaultValue = true
+				}
+			},
+			{
+				SharedSettingKeys.RayTracing.GiStrength,
+				new SettingDef<float>
+				{
+					Key = SharedSettingKeys.RayTracing.GiStrength,
+					SectionKey = "ray_tracing",
+					Label = "GI Strength",
+					Description = "Intensity of global illumination.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.RtReflections) && ctx.Get<bool>(SharedSettingKeys.RayTracing.GlobalIllumination) ? null : "Requires Global Illumination to be enabled.",
+					ValueKind = SettingValueKind.Float,
+					ControlKind = SettingControlKind.Slider,
+					DefaultValue = 0.7f,
+					MinValue = 0f,
+					MaxValue = 1f,
+					Step = 0.05f
+				}
+			},
+			{
+				SharedSettingKeys.RayTracing.Reflections,
+				new SettingDef<bool>
+				{
+					Key = SharedSettingKeys.RayTracing.Reflections,
+					SectionKey = "ray_tracing",
+					Label = "Reflections",
+					Description = "Toggle ray traced reflections.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.RtReflections) ? null : "Requires Ray Tracing to be enabled.",
+					ValueKind = SettingValueKind.Bool,
+					ControlKind = SettingControlKind.Toggle,
+					DefaultValue = true
+				}
+			},
+			{
+				SharedSettingKeys.RayTracing.Volumetrics,
+				new SettingDef<bool>
+				{
+					Key = SharedSettingKeys.RayTracing.Volumetrics,
+					SectionKey = "ray_tracing",
+					Label = "Volumetric Lighting",
+					Description = "Toggle sun and god rays.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.RtReflections) ? null : "Requires Ray Tracing to be enabled.",
 					ValueKind = SettingValueKind.Bool,
 					ControlKind = SettingControlKind.Toggle,
 					DefaultValue = true
@@ -269,6 +368,8 @@ public static class SharedSettingsRegistry
 					SectionKey = "post_processing",
 					Label = "SDFGI",
 					Description = "Toggle SDFGI (semi-real-time global illumination) effect.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.RtReflections) && ctx.Get<bool>(SharedSettingKeys.RayTracing.GlobalIllumination) ? "Disabled while ray traced Global Illumination is enabled." : null,
+					AutoOffWhenDisabled = true,
 					ValueKind = SettingValueKind.Bool,
 					ControlKind = SettingControlKind.Toggle,
 					DefaultValue = true
@@ -279,7 +380,7 @@ public static class SharedSettingsRegistry
 				new SettingDef<bool>
 				{
 					Key = SharedSettingKeys.PostProcessing.NormalMaps,
-					SectionKey = "post_processing",
+					SectionKey = "graphics",
 					Label = "Normal Maps",
 					Description = "Toggle normal maps on part materials.",
 					ValueKind = SettingValueKind.Bool,
@@ -296,6 +397,7 @@ public static class SharedSettingsRegistry
 					SectionKey = "post_processing",
 					Label = "SDFGI Cell Size",
 					Description = "Size of SDFGI cells. Larger cells improve performance but reduce quality.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.Sdfgi) ? null : "Requires SDFGI to be enabled.",
 					ValueKind = SettingValueKind.Float,
 					ControlKind = SettingControlKind.Slider,
 					DefaultValue = 0.8f,
@@ -313,6 +415,7 @@ public static class SharedSettingsRegistry
 					SectionKey = "post_processing",
 					Label = "SDFGI Cascades",
 					Description = "Number of cascades for SDFGI.",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.Sdfgi) ? null : "Requires SDFGI to be enabled.",
 					ValueKind = SettingValueKind.Int,
 					ControlKind = SettingControlKind.Slider,
 					DefaultValue = 6,
@@ -330,6 +433,7 @@ public static class SharedSettingsRegistry
 					SectionKey = "post_processing",
 					Label = "SSIL Radius",
 					Description = "Radius for SSIL effect",
+					DisabledText = ctx => ctx.Get<bool>(SharedSettingKeys.PostProcessing.Ssil) ? null : "Requires SSIL to be enabled.",
 					ValueKind = SettingValueKind.Float,
 					ControlKind = SettingControlKind.Slider,
 					DefaultValue = 10f,

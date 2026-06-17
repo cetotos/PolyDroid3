@@ -102,8 +102,22 @@ public partial class NewProjectWizard : Control
 	{
 		Visible = true;
 		_oldNameText = DefaultProjectName;
-		_projectNameEdit.Text = DefaultProjectName;
-		_projectPathEdit.Text = Path.Join(System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments), CreatorService.PolytoriaFolderName, DefaultProjectName).SanitizePath();
+		try
+		{
+			_projectNameEdit.Text = DefaultProjectName;
+			string docs;
+			try { docs = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments); }
+			catch { docs = ""; }
+			if (string.IsNullOrEmpty(docs))
+			{
+				docs = ProjectSettings.GlobalizePath("user://");
+			}
+			_projectPathEdit.Text = Path.Join(docs, CreatorService.PolytoriaFolderName, DefaultProjectName).SanitizePath();
+		}
+		catch (Exception ex)
+		{
+			PT.PrintErr($"NewProjectWizard.Open() init failed: {ex}");
+		}
 	}
 
 	public void Back()

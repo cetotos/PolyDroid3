@@ -512,10 +512,26 @@ public sealed partial class Player : NPC
 
 	private async void FetchUserInfo()
 	{
-		UserInfo = await PolyAPI.GetUserFromID(UserID);
-		if (UserInfo.HasValue)
+		if (Polytoria.Shared.Globals.IsServerBuild) return;
+
+		try
 		{
-			UserInfoReady?.Invoke(UserInfo.Value);
+			bool isMobileSoloHost = Polytoria.Shared.Globals.IsMobileBuild && Root?.Entry != null && Root.Entry.IsSoloTest;
+			if (AutoLoadAppearance && UserID > 0 && Root?.Network != null && (!Root.Network.IsServer || isMobileSoloHost))
+			{
+				int loadUserId = Root.Entry != null && Root.Entry.IsSoloTest ? 1144 : UserID;
+				LoadAppearance(loadUserId);
+			}
+
+			UserInfo = await PolyAPI.GetUserFromID(UserID);
+			if (UserInfo.HasValue)
+			{
+				UserInfoReady?.Invoke(UserInfo.Value);
+			}
+		}
+		catch (Exception ex)
+		{
+			PT.PrintErr("FetchUserInfo failed for userID=", UserID, ": ", ex);
 		}
 	}
 
@@ -640,7 +656,7 @@ public sealed partial class Player : NPC
 		if (FootFwdRaycast.IsColliding())
 		{
 			Node collider = (Node)FootFwdRaycast.GetCollider();
-			if (collider != null && GetNetObjFromProxy(collider) is Truss truss)
+			if (collider != null && GetNetObjFromProxy(collider) is Truss truss && !Polytoria.Shared.XRClimbState.Active)
 			{
 				if (!IsClimbing)
 				{
@@ -839,6 +855,18 @@ public sealed partial class Player : NPC
 		{
 			ptc.RagdollStarted.Connect(OnRagdollStarted);
 			ptc.RagdollStopped.Connect(OnRagdollStopped);
+			ptc.AvatarLoaded += OnLocalAvatarLoaded;
+		}
+	}
+
+	private void OnLocalAvatarLoaded()
+	{
+		if (Character is PolytorianModel pt
+			&& Polytoria.Shared.XRBootstrap.IsActive
+			&& Root.Environment.CurrentCamera is { } cam && cam.IsFirstPerson)
+		{
+			pt.HeadMeshInstance.Visible = false;
+			SetHeadAccessoriesVisible(pt, false);
 		}
 	}
 
@@ -901,8 +929,17 @@ public sealed partial class Player : NPC
 	private void OnFirstPersonEntered()
 	{
 		if (Character == null) return;
-		Character.GDNode3D.Visible = false;
 		_bubbleChat.Visible = false;
+		if (Polytoria.Shared.XRBootstrap.IsActive && Character is PolytorianModel pt && pt.HeadMeshInstance != null)
+		{
+			Character.GDNode3D.Visible = true;
+			pt.HeadMeshInstance.Visible = false;
+			SetHeadAccessoriesVisible(pt, false);
+		}
+		else
+		{
+			Character.GDNode3D.Visible = false;
+		}
 	}
 
 	private void OnFirstPersonExited()
@@ -910,6 +947,25 @@ public sealed partial class Player : NPC
 		if (Character == null) return;
 		Character.GDNode3D.Visible = true;
 		_bubbleChat.Visible = true;
+		if (Character is PolytorianModel pt && pt.HeadMeshInstance != null)
+		{
+			pt.HeadMeshInstance.Visible = true;
+			SetHeadAccessoriesVisible(pt, true);
+		}
+	}
+
+	private static void SetHeadAccessoriesVisible(PolytorianModel pt, bool visible)
+	{
+		foreach (Instance child in pt.GetChildren())
+		{
+			if (child is Accessory a && a.TargetAttachment == PolytorianModel.CharacterAttachmentEnum.Head)
+			{
+				foreach (Instance grand in a.GetChildren())
+				{
+					if (grand is Mesh m) m.IsHidden = !visible;
+				}
+			}
+		}
 	}
 
 	public void WrapToSpawnPoint()
@@ -1074,17 +1130,18 @@ public sealed partial class Player : NPC
 	[ScriptMethod]
 	public void ResetAppearance()
 	{
+		int userId = (Root.Entry != null && Root.Entry.IsSoloTest) ? 1144 : UserID;
+		Rpc(nameof(NetResetAppearance), userId, AutoLoadAppearance);
+	}
+
+	[NetRpc(AuthorityMode.Server, CallLocal = true, TransferMode = TransferMode.Reliable)]
+	private void NetResetAppearance(int userId, bool autoLoad)
+	{
 		ClearAppearance();
-		if (AutoLoadAppearance)
+		bool isMobileSoloHost = Polytoria.Shared.Globals.IsMobileBuild && Root?.Entry != null && Root.Entry.IsSoloTest;
+		if (autoLoad && Root?.Network != null && (!Root.Network.IsServer || isMobileSoloHost))
 		{
-			if (Root.Entry != null && Root.Entry.IsSoloTest)
-			{
-				LoadAppearance(1144);
-			}
-			else
-			{
-				LoadAppearance(UserID);
-			}
+			LoadAppearance(userId);
 		}
 	}
 

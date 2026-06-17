@@ -7,6 +7,7 @@ using Godot.Collections;
 using Polytoria.Attributes;
 using Polytoria.Client.Settings;
 using Polytoria.Scripting;
+using Polytoria.Shared;
 using Polytoria.Shared.Misc;
 using Polytoria.Utils;
 using System;
@@ -56,6 +57,7 @@ public sealed partial class Camera : Dynamic
 
 	private bool _isMouseCaptured;
 	private Vector2I _lastMousePosition;
+	private readonly System.Collections.Generic.HashSet<int> _activeTouches = new();
 
 	private Vector2 _currentRotation = Vector2.Zero;
 	private Vector3 _currentMovement = Vector3.Zero;
@@ -73,6 +75,12 @@ public sealed partial class Camera : Dynamic
 
 	internal Camera3D Camera3D = null!;
 	internal bool IsTurning => _turning;
+
+	private XROrigin3D? _xrOrigin;
+	private XRCamera3D? _xrCamera;
+	private bool _xrFirstPersonForced;
+	private float _xrStandHeight;
+	internal bool IsXR { get; private set; }
 
 	[Editable, ScriptProperty, DefaultValue(CameraModeEnum.Follow)]
 	public CameraModeEnum Mode
@@ -408,7 +416,50 @@ public sealed partial class Camera : Dynamic
 		_inputHelper.GodotUnhandledInputEvent += OnInput;
 		_inputHelper.GodotInputEvent += OnInputEarly;
 
-		GDNode3D.AddChild(Camera3D = new());
+		if (Polytoria.Shared.XRBootstrap.IsActive)
+		{
+			IsXR = true;
+			GDNode3D.AddChild(_xrOrigin = new XROrigin3D());
+			_xrOrigin.RotationDegrees = new(0, 180, 0);
+			_xrOrigin.AddChild(_xrCamera = new XRCamera3D { Current = true });
+			Camera3D = _xrCamera;
+			_xrOrigin.AddChild(new OpenXRRenderModelManager());
+
+			Polytoria.Shared.VRPanel? panel = Polytoria.Shared.VRPanel.Instance;
+			if (panel == null)
+			{
+				panel = new Polytoria.Shared.VRPanel();
+				GDNode3D.GetParent().AddChild(panel);
+			}
+			panel.SetCamera(_xrCamera);
+
+			if (Polytoria.Shared.VRKeyboard.Instance is Polytoria.Shared.VRKeyboard keyboard)
+			{
+				keyboard.SetCamera(_xrCamera);
+			}
+			else
+			{
+				GDNode3D.GetParent().AddChild(new Polytoria.Shared.VRKeyboard(panel.Viewport, _xrCamera));
+			}
+
+			if (Polytoria.Shared.VRBottomBar.Instance is Polytoria.Shared.VRBottomBar bar)
+			{
+				bar.SetCamera(_xrCamera);
+			}
+			else
+			{
+				bar = new Polytoria.Shared.VRBottomBar();
+				GDNode3D.GetParent().AddChild(bar);
+				bar.SetCamera(_xrCamera);
+			}
+
+			GDNode3D.AddChild(new Polytoria.Shared.XRControlBridge(_xrOrigin));
+			Polytoria.Shared.XRBootstrap.ReleaseLoadingRig();
+		}
+		else
+		{
+			GDNode3D.AddChild(Camera3D = new());
+		}
 
 		_turnX = new Node3D();
 		_turnY = new Node3D();
@@ -448,6 +499,54 @@ public sealed partial class Camera : Dynamic
 	internal void CameraProcess(double delta)
 	{
 		if (Root.Environment.CurrentCamera != this) return;
+
+		if (IsXR && _xrOrigin != null && _xrCamera != null)
+		{
+			if (!_xrFirstPersonForced && Target != null)
+			{
+				_xrFirstPersonForced = true;
+				_targetZoom = 0;
+				IsFirstPerson = true;
+				FirstPersonEntered?.Invoke();
+			}
+			if (Mode == CameraModeEnum.Follow && Target != null)
+			{
+				Vector3 desired = Target.Position + PositionOffset;
+				Vector3 headsetLocal = _xrCamera.Transform.Origin;
+				Vector3 headsetWorldOffset = _xrOrigin.GlobalTransform.Basis * headsetLocal;
+
+				float worldScale = (float)XRServer.WorldScale;
+				if (_xrStandHeight <= 0f)
+				{
+					_xrStandHeight = headsetLocal.Y;
+				}
+				float standDeficit = _xrStandHeight - headsetLocal.Y;
+				if (standDeficit < 0f)
+				{
+					_xrStandHeight = Mathf.Min(headsetLocal.Y, _xrStandHeight + (float)delta * 0.5f * worldScale);
+				}
+				else if (standDeficit < 0.15f * worldScale)
+				{
+					_xrStandHeight = Mathf.Max(headsetLocal.Y, _xrStandHeight - (float)delta * 0.05f * worldScale);
+				}
+				float physicalCrouch = Mathf.Max(0f, _xrStandHeight - headsetLocal.Y);
+				desired.Y -= Mathf.Max(physicalCrouch, Polytoria.Shared.XRBootstrap.MinCrouchWorld);
+				Polytoria.Shared.XRBootstrap.CrouchWorld = physicalCrouch;
+
+				Basis camWorldBasis = _xrOrigin.GlobalTransform.Basis * _xrCamera.Transform.Basis;
+				Vector3 fwd = -camWorldBasis.Z;
+				fwd.Y = 0;
+				if (fwd.LengthSquared() > 1e-4f)
+				{
+					fwd = fwd.Normalized();
+					desired += fwd * (Polytoria.Shared.XRBootstrap.EyeForwardOffsetMeters * (float)XRServer.WorldScale);
+				}
+
+				_xrOrigin.GlobalPosition = desired - headsetWorldOffset;
+			}
+			return;
+		}
+
 		if (Mode == CameraModeEnum.Follow && Target != null)
 		{
 			if (Root.Input.IsGameFocused)
@@ -563,6 +662,12 @@ public sealed partial class Camera : Dynamic
 		}
 		else if (Mode == CameraModeEnum.Free)
 		{
+			if (Polytoria.Shared.Globals.FreezeWorldInput)
+			{
+				_currentMovement = Vector3.Zero;
+				_currentRotation = Vector2.Zero;
+				return;
+			}
 			if (Input.IsKeyPressed(Key.Ctrl)) return;
 			if (!Root.Input.IsGameFocused) return;
 			Vector2 horizontalInput = Input.GetVector("leftward", "rightward", "forward", "backward");
@@ -816,6 +921,12 @@ public sealed partial class Camera : Dynamic
 
 	private void HandleFreeCam(InputEvent @event)
 	{
+		if (@event is InputEventScreenTouch touch)
+		{
+			if (touch.Pressed) _activeTouches.Add(touch.Index);
+			else _activeTouches.Remove(touch.Index);
+		}
+
 		if (@event is InputEventMouseButton button)
 		{
 			if (button.ButtonIndex == MouseButton.Right)
@@ -882,6 +993,24 @@ public sealed partial class Camera : Dynamic
 		else if (@event.IsActionPressed("camera_snap_backward"))
 		{
 			SnapBackward();
+		}
+
+		if (@event is InputEventScreenDrag screenDrag && (_isMouseCaptured || _activeTouches.Count < 2))
+		{
+			_currentRotation = -new Vector2(screenDrag.ScreenRelative.X, screenDrag.ScreenRelative.Y);
+		}
+		else if (@event is InputEventMagnifyGesture magnify)
+		{
+			float step = (magnify.Factor - 1.0f) * (_moveSpeed * 0.5f);
+			Position += Forward * step;
+		}
+		else if (@event is InputEventPanGesture pan)
+		{
+			Transform3D t = GetGlobalTransform();
+			Vector3 right = t.Basis.X.Normalized();
+			Vector3 up = t.Basis.Y.Normalized();
+			float panSpeed = _moveSpeed * 0.02f;
+			Position += right * (-pan.Delta.X * panSpeed) + up * (pan.Delta.Y * panSpeed);
 		}
 
 #if CREATOR
@@ -968,6 +1097,10 @@ public sealed partial class Camera : Dynamic
 	[ScriptMethod]
 	public RayResult? ViewportPointToRay(Vector2 pos, Instance[]? ignoreList = null, float maxDistance = 10000f)
 	{
+		if (TryGetXRRay(out Vector3 xrOrigin, out Vector3 xrDir))
+		{
+			return Root.Environment.Raycast(xrOrigin, xrDir, maxDistance, ignoreList);
+		}
 		Viewport viewport = GDNode.GetViewport();
 		Vector2 size = viewport.GetVisibleRect().Size;
 		Vector2 screenPos = new(pos.X * size.X, pos.Y * size.Y);
@@ -979,9 +1112,28 @@ public sealed partial class Camera : Dynamic
 	[ScriptMethod]
 	public RayResult? ScreenPointToRay(Vector2 pos, Instance[]? ignoreList = null, float maxDistance = 10000f)
 	{
+		if (TryGetXRRay(out Vector3 xrOrigin, out Vector3 xrDir))
+		{
+			return Root.Environment.Raycast(xrOrigin, xrDir, maxDistance, ignoreList);
+		}
 		Vector3 rayOrigin = Camera3D.ProjectRayOrigin(pos);
 		Vector3 rayDir = Camera3D.ProjectRayNormal(pos);
 		return Root.Environment.Raycast(rayOrigin, rayDir, maxDistance, ignoreList);
+	}
+
+	private bool TryGetXRRay(out Vector3 origin, out Vector3 dir)
+	{
+		if (IsXR && (Polytoria.Shared.XRControlBridge.DominantController
+			?? Polytoria.Shared.XRControlBridge.RightController) is XRController3D rc)
+		{
+			Transform3D t = rc.GlobalTransform;
+			origin = t.Origin;
+			dir = -t.Basis.Z.Normalized();
+			return true;
+		}
+		origin = Vector3.Zero;
+		dir = Vector3.Forward;
+		return false;
 	}
 
 	[ScriptMethod]

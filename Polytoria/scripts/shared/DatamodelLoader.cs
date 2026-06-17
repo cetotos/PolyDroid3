@@ -38,6 +38,10 @@ public static class DatamodelLoader
 			// XML Format
 			await XmlFormat.LoadString(root, data.GetStringFromUtf8());
 		}
+		else if (fileType == PolyFileTypeEnum.PolyData)
+		{
+			PolyFormat.LoadWorld(root, data);
+		}
 		else if (fileType == PolyFileTypeEnum.Packed)
 		{
 			// Poly Format
@@ -58,6 +62,11 @@ public static class DatamodelLoader
 			XmlFormat.GameItem gameItem = XmlFormat.ParseContent(data.GetStringFromUtf8());
 
 			return gameItem.Name ?? "Model";
+		}
+		else if (fileType == PolyFileTypeEnum.PolyData)
+		{
+			PolyFormat.PolyRootData rootData = PolyFormat.ReadRootDataBytes(data);
+			return rootData.Objects.Length > 0 ? rootData.Objects[0].Name : "Model";
 		}
 		else if (fileType == PolyFileTypeEnum.Packed)
 		{
@@ -111,6 +120,21 @@ public static class DatamodelLoader
 			}
 			return m;
 		}
+		else if (fileType == PolyFileTypeEnum.PolyData)
+		{
+			Instance? m = PolyFormat.LoadModel(root, data, parent);
+			if (m != null)
+			{
+#if CREATOR
+				if (root.LinkedSession != null)
+				{
+					string modelPath = baseFolder + modelName + ".model";
+					root.LinkedSession.SaveModel(m, modelPath);
+				}
+#endif
+				return m;
+			}
+		}
 		else if (fileType == PolyFileTypeEnum.Packed)
 		{
 			Instance? packedModel = PackedFormat.LoadPackedModel(root, data, parent);
@@ -143,10 +167,11 @@ public static class DatamodelLoader
 		{
 			return PolyFileTypeEnum.PolyXML;
 		}
-		else
+		if (data[0] == 0x7B || data[0] == 0x28)
 		{
-			return PolyFileTypeEnum.Packed;
+			return PolyFileTypeEnum.PolyData;
 		}
+		return PolyFileTypeEnum.Packed;
 	}
 }
 
@@ -154,5 +179,6 @@ public enum PolyFileTypeEnum
 {
 	Packed,
 	PolyXML,
+	PolyData,
 	Empty
 }

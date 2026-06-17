@@ -13,6 +13,7 @@ public partial class PTImageAsset : ImageAsset
 {
 	private uint _imageID;
 	private ImageTypeEnum _imageType;
+	private string _directURL = "";
 
 	[Editable, ScriptProperty]
 	public uint ImageID
@@ -38,6 +39,17 @@ public partial class PTImageAsset : ImageAsset
 		}
 	}
 
+	[Editable, ScriptProperty]
+	public string DirectURL
+	{
+		get => _directURL;
+		set
+		{
+			_directURL = value ?? "";
+			QueueLoadResource();
+		}
+	}
+
 	internal string? DirectImageURL { get; private set; }
 
 	public static void RegisterAsset()
@@ -47,7 +59,7 @@ public partial class PTImageAsset : ImageAsset
 
 	public override void LoadResource()
 	{
-		if (ImageID == 0) { return; }
+		if (ImageID == 0 && string.IsNullOrEmpty(_directURL)) { return; }
 		ResourceType resourceType = ImageType switch
 		{
 			ImageTypeEnum.Asset => ResourceType.Decal,
@@ -62,7 +74,7 @@ public partial class PTImageAsset : ImageAsset
 		};
 
 		AssetLoader.Singleton.GetRawCache(
-			new() { Type = resourceType, ID = ImageID },
+			new() { Type = resourceType, ID = ImageID, DirectURL = _directURL },
 			OnResourceLoaded
 		);
 	}

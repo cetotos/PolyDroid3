@@ -41,6 +41,8 @@ public sealed partial class NetworkService : Instance
 	private const int AuthWaitTimeoutSec = 15; // Time wait before user disconnects due to auth timeout
 	private const int HeartbeatIntervalSec = 10; // Server heartbeat interval
 	private const int HeartbeatBeforeCheckPlayers = 5; // Server wait before checking players
+	private const double NetKeepaliveIntervalSec = 1.0;
+	private static readonly byte[] _netKeepalivePacket = [NetworkInstance.KeepaliveMarker];
 	private const float ConnectTimeoutSec = 90; // Timeout kick if player is not ready
 
 	// TODO: Narrow this down
@@ -93,14 +95,15 @@ public sealed partial class NetworkService : Instance
 	public bool IsPlaceReplicationDone = false;
 	public bool IsTransformReplicateDone = false;
 	public bool IsClientScriptReplicateDone = false;
-	// Is production
 	public bool IsProd = false;
 	public NetworkModeEnum NetworkMode { get; set; } = NetworkModeEnum.Client;
+	public string? ServerCreatorName;
 
 	private ulong placeReplicationStartTime = 0;
 	private readonly Dictionary<string, List<NetReplicateData>> _pendingReplications = [];
 	private Godot.Timer _heartbeatTimer = null!;
 	private ulong _heartbeatCount = 0;
+	private Godot.Timer _netKeepaliveTimer = null!;
 	public ClientEntry Entry = null!;
 
 	/// <summary>
@@ -330,10 +333,7 @@ public sealed partial class NetworkService : Instance
 			}
 			catch (Exception ex)
 			{
-				if (OS.IsDebugBuild())
-				{
-					PT.PrintErr(dispatch.Method.Name, " invoke failure: ", ex);
-				}
+				PT.PrintErr(dispatch.Method.Name, " invoke failure: ", ex);
 			}
 			finally
 			{
@@ -345,10 +345,9 @@ public sealed partial class NetworkService : Instance
 		catch (Exception ex)
 		{
 #if DEBUG
-			if (OS.IsDebugBuild())
-			{
-				PT.PrintErr("Invalid Packet: ", ex, "\nOrigin stack trace: ", netDebugTrace);
-			}
+			PT.PrintErr("Invalid Packet: ", ex, "\nOrigin stack trace: ", netDebugTrace);
+#else
+			PT.PrintErr("Invalid Packet: ", ex);
 #endif
 		}
 	}
@@ -379,7 +378,7 @@ public sealed partial class NetworkService : Instance
 
 		if (Globals.IsInGDEditor)
 		{
-			DisplayServer.WindowSetTitle("Polytoria - Server");
+			DisplayServer.WindowSetTitle("PolyDroid 3 - Server");
 		}
 
 		if (IsProd)
@@ -390,11 +389,86 @@ public sealed partial class NetworkService : Instance
 			_heartbeatTimer.Start(HeartbeatIntervalSec);
 			ServerSendHeartbeat();
 		}
+
+		_netKeepaliveTimer = new();
+		Globals.Singleton.AddChild(_netKeepaliveTimer);
+		_netKeepaliveTimer.Timeout += ServerSendNetKeepalive;
+		_netKeepaliveTimer.Start(NetKeepaliveIntervalSec);
+
 		Root.Players.PlayerAdded.Connect(OnPlayerAdded);
 		Root.Players.PlayerRemoved.Connect(OnPlayerRemoved);
 
+		foreach (Instance inst in Root.GetDescendants())
+		{
+			if (inst is Physical phy)
+			{
+				phy.EnsureGrabbableFromTag();
+			}
+		}
+
 		OnServerStarted();
 		OnSessionStarted();
+	}
+
+	public Player CreateLocalServerPlayer(int userID, string username, ClientPlatformEnum platform = ClientPlatformEnum.Mobile)
+	{
+		int peerID = LocalPeerID;
+		string name = string.IsNullOrWhiteSpace(username) ? "Player" + userID.ToString() : username.Trim();
+
+		Player plr = Globals.LoadInstance<Player>(Root)!;
+		_players.PeerIDToPlayer.TryAdd(peerID, plr);
+
+		plr.PeerID = peerID;
+		plr.UserID = userID;
+		plr.Name = name;
+		plr.IsAdmin = false;
+		plr.UserRoleClass = "";
+		plr.IsCreator = true;
+		plr.IsAgeRestricted = false;
+		plr.CanChat = true;
+		plr.UserPlatform = platform;
+
+		if (Root.PlayerDefaults.ChatColorsEnabled)
+		{
+			plr.ChatColor = Player.ChatColorFromUserID(userID);
+		}
+		else
+		{
+			plr.ChatColor = Root.PlayerDefaults.ChatColor;
+		}
+
+		plr.SetNetworkAuthority(peerID, true);
+		plr.NetTransformAuthority = peerID;
+		if (!_players.UseServerAuthority)
+		{
+			plr.NetPropAuthority = peerID;
+		}
+
+		if (NetworkMode == NetworkModeEnum.Client)
+		{
+			Root.Insert.InitializeDefaultNPC(plr);
+		}
+
+		plr.Parent = _players;
+
+		foreach (Instance item in Root.PlayerDefaults.GetChildren())
+		{
+			if (item is Inventory) continue;
+			NetworkedObject a = item.Clone();
+			if (a is Instance i)
+			{
+				i.Parent = plr;
+			}
+		}
+
+		plr.IsReady = true;
+		plr.Anchored = false;
+		plr.Respawn();
+
+		_players.SetLocalPlayer(plr);
+		_players.InvokePlayerAdded(plr);
+
+		return plr;
 	}
 
 	public async void CreateClient(string address, int port = 24221)
@@ -440,6 +514,13 @@ public sealed partial class NetworkService : Instance
 		}
 
 		_heartbeatTimer.Start(HeartbeatIntervalSec);
+	}
+
+	private void ServerSendNetKeepalive()
+	{
+		if (NetInstance == null || IsShuttingDown) return;
+		if (NetInstance.PeerIds.Count == 0) return;
+		NetInstance.BroadcastMessage(_netKeepalivePacket, TransferMode.Unreliable);
 	}
 
 	private void OnPlayerAdded(Player player)
@@ -509,6 +590,20 @@ public sealed partial class NetworkService : Instance
 		}
 	}
 
+	private void EvictStalePlayer(Player? stale, int incomingPeerID)
+	{
+		if (stale == null || stale.IsDeleted) return;
+		if (stale.PeerID == incomingPeerID) return;
+		if (NetInstance != null && stale.PeerID != 0)
+		{
+			// graceful disconnect because forcing it corrupts the incoming peer's ENet slot and leaves them stuck on "Downloading world..."
+			NetInstance.DisconnectPeer(stale.PeerID, false);
+		}
+		_players.PeerIDToPlayer.Remove(stale.PeerID);
+		_players.InvokePlayerRemoved(stale);
+		stale.ForceDelete();
+	}
+
 	internal async void DisconnectPeer(int peerID, string reason = "", DisconnectionCodeEnum code = DisconnectionCodeEnum.Kicked)
 	{
 		RpcId(peerID, nameof(NetRecvDisconnect), reason, (int)code);
@@ -568,12 +663,12 @@ public sealed partial class NetworkService : Instance
 			pk = IntegrityCheckLayer.Generate(platformName);
 		}
 
-		RpcId(1, nameof(NetAuthResponse), Entry.TestUserID, PolyAuthAPI.Token, (int)NetworkMode, (int)platform, platformName, pk);
+		RpcId(1, nameof(NetAuthResponse), Entry.TestUserID, PolyAuthAPI.Token, (int)NetworkMode, (int)platform, platformName, pk, Entry.TestUsername);
 	}
 
 
 	[NetRpc(AuthorityMode.Any, TransferMode = TransferMode.Reliable)]
-	private async void NetAuthResponse(int testUserID, string userToken, int networkMode, int platform, string platformStr, byte[] pk)
+	private async void NetAuthResponse(int testUserID, string userToken, int networkMode, int platform, string platformStr, byte[] pk, string testUsername)
 	{
 		if (NetInstance == null) return;
 		int peerID = RemoteSenderId;
@@ -608,9 +703,14 @@ public sealed partial class NetworkService : Instance
 			validateRes = new() { CanChat = true, UserID = testUserID, IsCreator = false, IsAgeRestricted = false };
 			if (OS.HasFeature("offline") || (Root.Entry != null && Root.Entry.IsSoloTest))
 			{
-				// Offline data
-				validateRes.IsCreator = true;
-				userData = new() { Username = "Player" + testUserID.ToString(), Id = testUserID, IsStaff = false };
+				string offlineName = string.IsNullOrWhiteSpace(testUsername)
+					? "Player" + testUserID.ToString()
+					: testUsername.Trim();
+				bool isSoloTest = Root.Entry != null && Root.Entry.IsSoloTest;
+				bool matchesServerCreator = !string.IsNullOrEmpty(ServerCreatorName)
+					&& offlineName.Equals(ServerCreatorName, StringComparison.OrdinalIgnoreCase);
+				validateRes.IsCreator = isSoloTest || matchesServerCreator;
+				userData = new() { Username = offlineName, Id = testUserID, IsStaff = false };
 			}
 			else if (IsProd)
 			{
@@ -643,12 +743,10 @@ public sealed partial class NetworkService : Instance
 
 		string username = userData.Username;
 
-		// Check for existing player
-		if (_players.GetPlayer(username) != null || _players.GetPlayerFromPeerID(peerID) != null)
-		{
-			DisconnectPeer(peerID, MultipleDeviceMessage, DisconnectionCodeEnum.MultipleDeviceNotAllowed);
-			return;
-		}
+		EvictStalePlayer(_players.GetPlayer(username), peerID);
+		EvictStalePlayer(_players.GetPlayerByID(userData.Id), peerID);
+		Player? staleByPeer = _players.GetPlayerFromPeerID(peerID);
+		if (staleByPeer != null && staleByPeer.Name != username) EvictStalePlayer(staleByPeer, peerID);
 
 		// Create player based on auth data
 
@@ -875,7 +973,7 @@ public sealed partial class NetworkService : Instance
 	{
 		if (Globals.IsInGDEditor)
 		{
-			DisplayServer.WindowSetTitle($"Polytoria - Client [{LocalPeerID}]");
+			DisplayServer.WindowSetTitle($"PolyDroid 3 - Client [{LocalPeerID}]");
 		}
 
 		Rpc(nameof(NetPlayerReportReady));

@@ -25,26 +25,24 @@ public static class RenderingDeviceSwitcher
 
 	public static void Switch(RenderingMethodOption option)
 	{
-		if (option == RenderingMethodOption.Auto)
-		{
-			return;
-		}
-
-		Switch(FromRenderingMethodOption(option));
+		Apply(option, GraphicsApiOption.Auto);
 	}
 
-	public static void Switch(RenderingDeviceEnum to)
+	public static void Apply(RenderingMethodOption method, GraphicsApiOption api)
 	{
 		// Mobile are locked to one renderer only, don't change
 		if (Globals.IsMobileBuild) return;
+		if (Globals.IsInGDEditor) return;
 
-		string renderingName = GetRenderingName(to);
-		string currentMethod = RenderingServer.GetCurrentRenderingMethod();
-		if (currentMethod == renderingName)
-		{
-			// already using this rendering, nothing to do
-			return;
-		}
+		string? desiredMethod = method == RenderingMethodOption.Auto
+			? null
+			: GetRenderingName(FromRenderingMethodOption(method));
+		string? desiredDriver = GetDriverName(method, api);
+
+		bool methodMismatch = desiredMethod != null && RenderingServer.GetCurrentRenderingMethod() != desiredMethod;
+		bool driverMismatch = desiredDriver != null && !string.Equals(RenderingServer.GetCurrentRenderingDriverName(), desiredDriver, StringComparison.OrdinalIgnoreCase);
+
+		if (!methodMismatch && !driverMismatch) return;
 
 		string[] args = OS.GetCmdlineArgs();
 
@@ -54,16 +52,25 @@ public static class RenderingDeviceSwitcher
 			return;
 		}
 
-		string exePath = OS.GetExecutablePath();
-
-		// rebuild command line arguments, replaces existing rendering method argument with the new one
-		OS.CreateProcess(exePath, GetRestartArgs(args, renderingName));
+		// relaunch ourselves with the right renderer then bail. the throw isn't a real error
+		OS.CreateProcess(OS.GetExecutablePath(), GetRestartArgs(args, desiredMethod, desiredDriver));
 
 		Globals.Singleton.Quit(force: true);
 		throw new SwitchingRenderingDeviceException();
 	}
 
-	private static string[] GetRestartArgs(string[] args, string renderingName)
+	private static string? GetDriverName(RenderingMethodOption method, GraphicsApiOption api)
+	{
+		if (method == RenderingMethodOption.Compatibility) return null;
+		return api switch
+		{
+			GraphicsApiOption.Vulkan => "vulkan",
+			GraphicsApiOption.Direct3D12 => "d3d12",
+			_ => null
+		};
+	}
+
+	private static string[] GetRestartArgs(string[] args, string? renderingName, string? driverName)
 	{
 		List<string> filtered = [];
 
@@ -71,7 +78,6 @@ public static class RenderingDeviceSwitcher
 		{
 			string arg = args[i];
 
-			// skip existing rendering method arguments
 			if (arg == "--rendering-method" || arg == "--rendering-driver")
 			{
 				if (i + 1 < args.Length && !args[i + 1].StartsWith('-'))
@@ -86,8 +92,16 @@ public static class RenderingDeviceSwitcher
 			filtered.Add(arg);
 		}
 
-		filtered.Add("--rendering-method");
-		filtered.Add(renderingName);
+		if (renderingName != null)
+		{
+			filtered.Add("--rendering-method");
+			filtered.Add(renderingName);
+		}
+		if (driverName != null)
+		{
+			filtered.Add("--rendering-driver");
+			filtered.Add(driverName);
+		}
 		filtered.Add("-rmswignore");
 
 		return [.. filtered];

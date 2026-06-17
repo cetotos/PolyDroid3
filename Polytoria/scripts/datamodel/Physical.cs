@@ -480,7 +480,17 @@ public partial class Physical : Dynamic
 
 		UpdateCollision();
 		UpdateFreeze();
+		EnsureGrabbableFromTag();
 		base.Ready();
+	}
+
+	internal void EnsureGrabbableFromTag()
+	{
+		if (Root?.Network == null || !Root.Network.IsServer) return;
+		if (Root.SessionType == World.SessionTypeEnum.Creator) return;
+		if (!HasTag("Grabbable")) return;
+		if (GetChildrenOfClass<Grabbable>().Length > 0) return;
+		New("Grabbable", this);
 	}
 
 	private CollisionObject3D? GetCollisionObject()

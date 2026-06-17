@@ -18,10 +18,11 @@ public static class CreatorSettingsRegistry
 		new() { Key = "display", Label = "Display", IconPath = "res://assets/textures/ui-icons/camera.svg", SortOrder = 2 },
 		new() { Key = "graphics", Label = "Graphics", IconPath = "res://assets/textures/ui-icons/mountain.svg", SortOrder = 3 },
 		new() { Key = "post_processing", Label = "Post Processing", IconPath = "res://assets/textures/ui-icons/rocket.svg", SortOrder = 4 },
-		new() { Key = "backup", Label = "Backup", IconPath = DefaultSectionIcon, SortOrder = 5 },
-		new() { Key = "code_editor", Label = "Code Editor", IconPath = DefaultSectionIcon, SortOrder = 6 },
-		new() { Key = "popups", Label = "Popups", IconPath = DefaultSectionIcon, SortOrder = 7 },
-		new() { Key = "advanced", Label = "Advanced", IconPath = DefaultSectionIcon, SortOrder = 8 }
+		new() { Key = "ray_tracing", Label = "Ray Tracing", IconPath = "res://assets/textures/ui-icons/raytrace.svg", SortOrder = 5 },
+		new() { Key = "backup", Label = "Backup", IconPath = DefaultSectionIcon, SortOrder = 6 },
+		new() { Key = "code_editor", Label = "Code Editor", IconPath = DefaultSectionIcon, SortOrder = 7 },
+		new() { Key = "popups", Label = "Popups", IconPath = DefaultSectionIcon, SortOrder = 8 },
+		new() { Key = "advanced", Label = "Advanced", IconPath = DefaultSectionIcon, SortOrder = 9 }
 	];
 
 	public static readonly IReadOnlyDictionary<string, SettingDef> Definitions = Build();
@@ -56,8 +57,8 @@ public static class CreatorSettingsRegistry
 				ControlKind = SettingControlKind.Slider,
 				DefaultValue = 1.0f,
 				MinValue = 0.5f,
-				MaxValue = 5f,
-				Step = 0.25f
+				MaxValue = 1.4f,
+				Step = 0.1f
 			});
 
 		// Backup

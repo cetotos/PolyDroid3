@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bbaus5pajteky"
+path="res://.godot/imported/ray_scene.glsl-bbc19b1c47ae886bcb9cb75efb83bdb1.res"
+
+[deps]
+
+source_file="res://rt_compositor/ray_scene.glsl"
+dest_files=["res://.godot/imported/ray_scene.glsl-bbc19b1c47ae886bcb9cb75efb83bdb1.res"]
+
+[params]
+

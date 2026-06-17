@@ -17,12 +17,13 @@ namespace Polytoria.Networking;
 /// </summary>
 public class NetworkInstance
 {
-	private const float SilenceTimeoutSeconds = 5.0f;
+	private const float SilenceTimeoutSeconds = 10.0f;
+	public const byte KeepaliveMarker = 0xFF;
 	private const int DataChannelAuthTimeoutMs = 10000;
 	private const ENetConnection.CompressionMode CompressionMode = ENetConnection.CompressionMode.Zlib;
 	private const int BandwidthInLimit = 0;
-	private const int BandwidthOutLimit = 30 * 1024;
-	private const int BandwidthPerPlayer = 200 * 1024; // 200 KB/s per player
+	private const int BandwidthOutLimit = 0;
+	private const int BandwidthPerPlayer = 200 * 1024;
 	private long _lastMessageTicks = DateTime.UtcNow.Ticks;
 	private readonly Dictionary<int, string> _dataServerTokens = [];
 
@@ -139,6 +140,11 @@ public class NetworkInstance
 				GD.PushWarning(targetID, " doesn't exist");
 				return;
 			}
+			if (peer.GetState() != ENetPacketPeer.PeerState.Connected)
+			{
+				GD.PushWarning(targetID, " not connected (state ", peer.GetState(), ")");
+				return;
+			}
 			Error err = peer.Send(transferChannel, data, (int)transferMode);
 			if (err != Error.Ok)
 			{
@@ -149,21 +155,21 @@ public class NetworkInstance
 
 	public void DisconnectPeer(int targetID, bool force = false)
 	{
+		IdToPeer.TryRemove(targetID, out ENetPacketPeer? removed);
 		_actionQueue.Enqueue(() =>
 		{
-			ENetPacketPeer? peer = GetPacketPeerFromId(targetID);
-			if (peer == null)
+			if (removed == null)
 			{
 				GD.PushWarning(targetID, " doesn't exist");
 				return;
 			}
 			if (force)
 			{
-				peer.PeerDisconnectNow();
+				removed.PeerDisconnectNow();
 			}
 			else
 			{
-				peer.PeerDisconnect();
+				removed.PeerDisconnect();
 			}
 		});
 	}
@@ -186,9 +192,10 @@ public class NetworkInstance
 		{
 			foreach ((int id, ENetPacketPeer? peer) in IdToPeer)
 			{
-				if (!peer.IsActive()) continue;
+				if (peer == null) continue;
+				if (peer.GetState() != ENetPacketPeer.PeerState.Connected) continue;
 				if (except != null && except.Contains(id)) continue;
-				peer?.Send(transferChannel, data, (int)transferMode);
+				peer.Send(transferChannel, data, (int)transferMode);
 			}
 		});
 	}
@@ -255,6 +262,7 @@ public class NetworkInstance
 
 				if (IsServer)
 				{
+					fromPeer.SetTimeout(32, 1000, 10000);
 					EnqueueEvent(new PeerConnectedEvent(peerID));
 				}
 				else
@@ -291,6 +299,9 @@ public class NetworkInstance
 						_ => TransferMode.Unreliable,
 					};
 					byte[] data = fromPeer.GetPacket();
+
+					// 1-byte 0xFF packets are keepalive heartbeats, drop them so they don't get to the message handlers
+					if (data.Length == 1 && data[0] == KeepaliveMarker) continue;
 
 					EnqueueEvent(new MessageReceivedEvent(peerID, data, m));
 				}

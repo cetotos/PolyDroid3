@@ -25,6 +25,10 @@ public partial class NerdStatPanel : Control
 		Visible = false;
 		UpdateVisible();
 
+		CreateLabel("Renderer", () =>
+		{
+			return RenderingServer.GetCurrentRenderingMethod() + " / " + RenderingServer.GetCurrentRenderingDriverName();
+		});
 		CreateLabel("FPS", () =>
 		{
 			return Engine.GetFramesPerSecond().ToString();

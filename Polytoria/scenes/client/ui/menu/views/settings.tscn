@@ -45,15 +45,20 @@ offset_bottom = 232.0
 theme = ExtResource("1_8qh8u")
 script = ExtResource("1_eqv2t")
 _viewContainer = NodePath("ScrollContainer")
-_categoryContainer = NodePath("Categories/VBoxContainer")
+_categoryContainer = NodePath("Categories/ScrollContainer/VBoxContainer")
 
 [node name="Categories" type="PanelContainer" parent="." unique_id=1438611249]
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_8o6pa")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Categories" unique_id=1954186437]
+[node name="ScrollContainer" type="ScrollContainer" parent="Categories"]
 layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Categories/ScrollContainer" unique_id=1954186437]
+layout_mode = 2
+size_flags_horizontal = 3
 theme = SubResource("Theme_4t0yl")
 theme_override_constants/separation = 4
 

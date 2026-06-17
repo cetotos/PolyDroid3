@@ -6,7 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://bkneu3t63qpl7" path="res://assets/textures/logo/logo-text.png" id="3_38s0r"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_387td"]
-bg_color = Color(0.12941177, 0.24313726, 0.38039216, 0.7882353)
+bg_color = Color(0.02745098, 0.047058824, 0.07450981, 0.7882353)
 
 [sub_resource type="Theme" id="Theme_l4u7o"]
 default_font_size = 20

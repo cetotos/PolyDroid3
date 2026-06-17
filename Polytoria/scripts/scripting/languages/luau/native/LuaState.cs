@@ -79,6 +79,16 @@ public partial class LuaState : IDisposable
 		Marshal.Copy(bytecodePtr, bytecode, 0, bytecode.Length);
 		Marshal.FreeHGlobal(bytecodePtr);
 		//Marshal.FreeHGlobal(optionsPtr);
+
+		// luau marks a failed compile with a leading 0 byte and the UTF-8 error message after it. valid bytecode never starts with 0
+		if (bytecode.Length >= 1 && bytecode[0] == 0)
+		{
+			string message = bytecode.Length > 1
+				? Encoding.UTF8.GetString(bytecode, 1, bytecode.Length - 1).TrimEnd('\0')
+				: "";
+			throw new LuaException("Luau compile error: " + (message.Length > 0 ? message : "(empty compiler message)"));
+		}
+
 		return bytecode;
 	}
 

@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://ide5di7614d1" path="res://scenes/shared/loading_guy.tscn" id="3_qb01s"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_387td"]
-bg_color = Color(0.12941177, 0.24313726, 0.38039216, 1)
+bg_color = Color(0.02745098, 0.047058824, 0.07450981, 1)
 
 [sub_resource type="Animation" id="Animation_lfm17"]
 length = 0.001

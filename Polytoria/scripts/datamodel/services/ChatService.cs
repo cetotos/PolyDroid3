@@ -165,7 +165,8 @@ public sealed partial class ChatService : Instance
 
 		if (player != null)
 		{
-			string formatted = FormatEmojis(msgContent);
+			string filtered = FilterService.Filter(msgContent);
+			string formatted = FormatEmojis(filtered);
 			NewChatMessage.Invoke(player, formatted);
 			player.InvokeChatted(formatted);
 		}

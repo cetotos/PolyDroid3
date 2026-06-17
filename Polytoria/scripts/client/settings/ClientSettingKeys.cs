@@ -29,6 +29,19 @@ public static class ClientSettingKeys
 	{
 		public const string PerformanceOverlayMode = "overlay.performance_mode";
 		public const string ConnectionIndicators = "overlay.connection_indicators";
+		public const string ButtonScale = "overlay.button_scale";
+		public const string ShowConsoleButton = "overlay.show_console_button";
+	}
+
+	public static class VR
+	{
+		public const string OpenXR = "vr.openxr";
+		public const string LeftHanded = "vr.left_handed";
+		public const string HapticStrength = "vr.haptic_strength";
+		public const string Grabbing = "vr.grabbing";
+		public const string SnapTurnAngle = "vr.snap_turn_angle";
+		public const string SmoothTurning = "vr.smooth_turning";
+		public const string SmoothTurnSpeed = "vr.smooth_turn_speed";
 	}
 
 	public static class Advanced

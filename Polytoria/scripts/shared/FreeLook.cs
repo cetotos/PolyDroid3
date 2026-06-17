@@ -42,6 +42,12 @@ public sealed partial class FreeLook : Camera3D
 			if (!Root.CreatorContext.IsViewportFocused) { return; }
 		}
 #endif
+		if (Globals.FreezeWorldInput)
+		{
+			_currentMovement = Vector3.Zero;
+			_currentRotation = Vector2.Zero;
+			return;
+		}
 		if (Input.IsKeyPressed(Key.Ctrl)) return;
 		Vector2 horizontalInput = Input.GetVector("leftward", "rightward", "forward", "backward");
 		float verticalInput = Input.GetAxis("downward", "upward");

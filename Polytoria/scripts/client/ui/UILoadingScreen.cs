@@ -31,17 +31,28 @@ public partial class UILoadingScreen : Control
 
 	private ClientEntry _entry = null!;
 
+	private ClientEntry? FindClientEntryAncestor()
+	{
+		Node? n = GetParent();
+		while (n != null)
+		{
+			if (n is ClientEntry ce) return ce;
+			n = n.GetParent();
+		}
+		return null;
+	}
+
 	public override void _Ready()
 	{
-		if (GetNodeOrNull("../../") is not ClientEntry)
+		ClientEntry? found = FindClientEntryAncestor();
+		if (found == null)
 		{
 			Visible = false;
 			return;
 		}
+		_entry = found;
 		_gameThumbnailImage = new();
 		_gameIconImage = new();
-
-		_entry = GetNode<ClientEntry>("../../");
 		if (_entry.IsNetEssentialsReady)
 		{
 			NetworkEssentialsReady();

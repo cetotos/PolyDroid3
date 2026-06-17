@@ -143,9 +143,16 @@ public sealed partial class NetworkReplicateSync : Instance
 	public void SendChunk(NetworkedObject[] netObjs, Player plr, bool isPlaceReplicate = false)
 	{
 		NetService.TransformSync.SendChunk(netObjs, plr);
-		byte[] rawData = ZstdCompressionUtils.Compress(SerializeUtils.Serialize(PackNetObjs(netObjs)));
 
-		RpcId(plr.PeerID, nameof(NetRecvChunk), rawData, isPlaceReplicate);
+		const int SendBatchSize = 50;
+		for (int i = 0; i < netObjs.Length; i += SendBatchSize)
+		{
+			int len = System.Math.Min(SendBatchSize, netObjs.Length - i);
+			NetworkedObject[] batch = new NetworkedObject[len];
+			System.Array.Copy(netObjs, i, batch, 0, len);
+			byte[] rawData = ZstdCompressionUtils.Compress(SerializeUtils.Serialize(PackNetObjs(batch)));
+			RpcId(plr.PeerID, nameof(NetRecvChunk), rawData, isPlaceReplicate);
+		}
 	}
 
 	// Fallsafe for pending replicates

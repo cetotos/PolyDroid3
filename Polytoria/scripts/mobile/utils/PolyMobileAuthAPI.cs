@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace Polytoria.Mobile.Utils;
 
-public static class PolyMobileAuthAPI
+public static partial class PolyMobileAuthAPI
 {
 	private static readonly PTHttpClient _client = new();
 	private static string _authState = "";
@@ -110,14 +110,7 @@ public static class PolyMobileAuthAPI
 		}
 		catch (Exception ex)
 		{
-			if (OS.IsDebugBuild())
-			{
-				OS.Alert($"{ex}", "Authentication Failure");
-			}
-			else
-			{
-				OS.Alert("Your session has expired, please log back in again.", "Authentication Failure");
-			}
+			PT.PrintErr("Authentication failure: ", ex);
 			AskForAuthentication?.Invoke();
 		}
 	}
@@ -125,6 +118,7 @@ public static class PolyMobileAuthAPI
 
 
 [JsonSerializable(typeof(MobileAuthData))]
+[JsonSerializable(typeof(WakeResponse))]
 internal partial class MobileAuthDataGenerationContext : JsonSerializerContext { }
 
 public struct MobileAuthData
@@ -137,4 +131,33 @@ public struct MobileAuthData
 
 	[JsonInclude]
 	public string Username { get; set; }
+}
+
+public struct WakeResponse
+{
+	[JsonPropertyName("id")] public int Id { get; set; }
+	[JsonPropertyName("port")] public int Port { get; set; }
+	[JsonPropertyName("ready")] public bool Ready { get; set; }
+	[JsonPropertyName("error")] public string? Error { get; set; }
+}
+
+public static partial class PolyMobileAuthAPI
+{
+	public static async Task<(bool ready, int port, string? error)> WakePlace(int placeId)
+	{
+		try
+		{
+			using HttpRequestMessage msg = new(HttpMethod.Post, Globals.ApiEndpoint + $"api/places/{placeId}/wake");
+			msg.Headers.TryAddWithoutValidation("Accept", "application/json");
+			using HttpResponseMessage resp = await _client.SendAsync(msg);
+			string body = await resp.Content.ReadAsStringAsync();
+			WakeResponse parsed = JsonSerializer.Deserialize(body, MobileAuthDataGenerationContext.Default.WakeResponse);
+			if (parsed.Ready) return (true, parsed.Port, null);
+			return (false, parsed.Port, parsed.Error);
+		}
+		catch (Exception ex)
+		{
+			return (false, Globals.GameServerBasePort + Mathf.Max(0, placeId - 1), ex.Message);
+		}
+	}
 }

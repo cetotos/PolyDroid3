@@ -197,6 +197,12 @@ public sealed partial class Players : Instance
 		Root.Network.OnLocalPlayerReady();
 	}
 
+	internal void SetLocalPlayer(Player plr)
+	{
+		LocalPlayer = plr;
+		LocalPlayer.OnNetReady();
+	}
+
 	internal void AdminKick(string username)
 	{
 		if (GetPlayer(username) is Player plr)

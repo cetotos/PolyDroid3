@@ -11,6 +11,7 @@ namespace Polytoria.Datamodel.Resources;
 public partial class PTMeshAsset : MeshAsset
 {
 	private uint _assetID;
+	private string _directURL = "";
 
 	[Editable, ScriptProperty]
 	public uint AssetID
@@ -24,6 +25,17 @@ public partial class PTMeshAsset : MeshAsset
 		}
 	}
 
+	[Editable, ScriptProperty]
+	public string DirectURL
+	{
+		get => _directURL;
+		set
+		{
+			_directURL = value ?? "";
+			LoadResource();
+		}
+	}
+
 	public static void RegisterAsset()
 	{
 		RegisterType<PTMeshAsset>();
@@ -32,7 +44,7 @@ public partial class PTMeshAsset : MeshAsset
 	public override void LoadResource()
 	{
 		AssetLoader.Singleton.GetResource(
-			new() { Type = ResourceType.Mesh, ID = AssetID },
+			new() { Type = ResourceType.Mesh, ID = AssetID, DirectURL = _directURL },
 			InvokeResourceLoaded
 		);
 	}

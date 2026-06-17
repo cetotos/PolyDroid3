@@ -42,6 +42,12 @@ public partial class PlaceCard : Button
 		Pressed += OnPressed;
 	}
 
+	public void SetPlaying(int playing)
+	{
+		PlaceData.Playing = playing;
+		if (_playingLabel != null) _playingLabel.Text = playing.ToString();
+	}
+
 	private void OnPressed()
 	{
 		MobileUI.Singleton.SwitchTo(MobileViewEnum.PlaceInfo, PlaceData.Id);

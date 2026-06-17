@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://n7po1dsruh8c"
+path="res://.godot/imported/denoise_composite.glsl-caf5dbd593f5554b5aec0d9865e32238.res"
+
+[deps]
+
+source_file="res://rt_compositor/denoise_composite.glsl"
+dest_files=["res://.godot/imported/denoise_composite.glsl-caf5dbd593f5554b5aec0d9865e32238.res"]
+
+[params]
+

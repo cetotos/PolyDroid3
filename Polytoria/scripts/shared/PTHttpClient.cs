@@ -19,6 +19,7 @@ namespace Polytoria.Shared;
 public partial class PTHttpClient
 {
 	private const int DefaultDownloadChunkSize = 10000;
+	private const double RequestTimeoutSeconds = 30.0;
 #if USE_NATIVE_HTTP
 	private static readonly HttpClient _httpClient = new();
 #endif
@@ -64,42 +65,62 @@ public partial class PTHttpClient
 			// Workaround since callable dont support async
 			async void a()
 			{
-				byte[] body = msg.Content != null ? await msg.Content.ReadAsByteArrayAsync() : [];
-
-				HttpRequest req = new() { DownloadChunkSize = DefaultDownloadChunkSize };
-
-				Globals.Singleton.AddChild(req);
-
-				req.RequestCompleted += (result, responseCode, responseHeaders, responseBody) =>
+				try
 				{
-					HttpResponseMessage response = new((HttpStatusCode)responseCode)
+					byte[] body = msg.Content != null ? await msg.Content.ReadAsByteArrayAsync() : [];
+
+					HttpRequest req = new()
 					{
-						Content = new ByteArrayContent(responseBody)
+						DownloadChunkSize = DefaultDownloadChunkSize,
+						Timeout = RequestTimeoutSeconds,
 					};
 
-					foreach (string header in responseHeaders)
+					Globals.Singleton.AddChild(req);
+
+					req.RequestCompleted += (result, responseCode, responseHeaders, responseBody) =>
 					{
-						string[] parts = header.Split(':', 2);
-						if (parts.Length == 2)
+						req.QueueFree();
+
+						if (result != (long)HttpRequest.Result.Success)
 						{
-							response.Headers.TryAddWithoutValidation(parts[0].Trim(), parts[1].Trim());
+							tcs.TrySetException(new HttpRequestException($"HttpRequest result: {(HttpRequest.Result)result}"));
+							return;
 						}
+
+						HttpResponseMessage response = new((HttpStatusCode)responseCode)
+						{
+							Content = new ByteArrayContent(responseBody)
+						};
+
+						foreach (string header in responseHeaders)
+						{
+							string[] parts = header.Split(':', 2);
+							if (parts.Length == 2)
+							{
+								response.Headers.TryAddWithoutValidation(parts[0].Trim(), parts[1].Trim());
+							}
+						}
+
+						tcs.TrySetResult(response);
+					};
+
+					string requestUrl = msg.RequestUri?.ToString() ?? throw new InvalidOperationException("URL is null");
+					Error error = req.RequestRaw(
+						requestUrl,
+						[.. headers],
+						Enum.Parse<Godot.HttpClient.Method>(msg.Method.Method.ToLower().Capitalize()),
+						new ReadOnlySpan<byte>(body)
+					);
+
+					if (error != Error.Ok)
+					{
+						req.QueueFree();
+						tcs.TrySetException(new HttpRequestException($"HttpRequest failed with error: {error}"));
 					}
-
-					req.QueueFree();
-					tcs.SetResult(response);
-				};
-
-				Error error = req.RequestRaw(
-					msg.RequestUri?.ToString() ?? throw new InvalidOperationException("URL is null"),
-					[.. headers],
-					Enum.Parse<Godot.HttpClient.Method>(msg.Method.Method.ToLower().Capitalize()),
-					new ReadOnlySpan<byte>(body)
-				);
-
-				if (error != Error.Ok)
+				}
+				catch (Exception ex)
 				{
-					throw new HttpRequestException($"HttpRequest failed with error: {error}");
+					tcs.TrySetException(ex);
 				}
 			}
 

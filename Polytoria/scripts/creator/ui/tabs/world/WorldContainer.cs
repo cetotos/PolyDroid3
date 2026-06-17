@@ -29,7 +29,7 @@ public sealed partial class WorldContainer : SubViewportContainer
 	{
 		World = game;
 		World3D world3D = new();
-		AddChild(_subViewport = new() { OwnWorld3D = false, HandleInputLocally = true, World3D = world3D, Msaa3D = Viewport.Msaa.Msaa4X }, true);
+		AddChild(_subViewport = new() { OwnWorld3D = false, HandleInputLocally = true, World3D = world3D, Msaa3D = Viewport.Msaa.Msaa4X, GuiEmbedSubwindows = true }, true);
 		game.Container = this;
 		game.World3D = world3D;
 		_subViewport.AddChild(game.GDNode, true);

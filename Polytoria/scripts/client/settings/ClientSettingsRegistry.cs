@@ -15,9 +15,11 @@ public static class ClientSettingsRegistry
 		new() {Key = "display", Label = "Display", IconPath = "res://assets/textures/ui-icons/camera.svg", SortOrder = 1},
 		new() {Key = "graphics", Label = "Graphics", IconPath = "res://assets/textures/ui-icons/mountain.svg", SortOrder = 2},
 		new() {Key = "post_processing", Label = "Post Processing", IconPath = "res://assets/textures/ui-icons/rocket.svg", SortOrder = 3},
-		new() {Key = "overlay", Label = "Overlay", IconPath = "res://assets/textures/ui-icons/copy.svg", SortOrder = 4},
-		new() {Key = "chat", Label = "Chat", IconPath = "res://assets/textures/ui-icons/messages.svg", SortOrder = 5},
-		new() {Key = "advanced", Label = "Advanced", IconPath = "res://assets/textures/ui-icons/code.svg", SortOrder = 6}
+		new() {Key = "ray_tracing", Label = "Ray Tracing", IconPath = "res://assets/textures/ui-icons/raytrace.svg", SortOrder = 4},
+		new() {Key = "overlay", Label = "Overlay", IconPath = "res://assets/textures/ui-icons/copy.svg", SortOrder = 5},
+		new() {Key = "chat", Label = "Chat", IconPath = "res://assets/textures/ui-icons/messages.svg", SortOrder = 6},
+		new() {Key = "vr", Label = "VR", IconPath = "res://assets/textures/ui-icons/vr.svg", SortOrder = 7},
+		new() {Key = "advanced", Label = "Advanced", IconPath = "res://assets/textures/ui-icons/code.svg", SortOrder = 8}
 	];
 
 	public static readonly IReadOnlyDictionary<string, SettingDef> Definitions = Build();
@@ -173,6 +175,35 @@ public static class ClientSettingsRegistry
 				DefaultValue = true
 			});
 
+		defs.Add(ClientSettingKeys.Overlay.ButtonScale,
+			new SettingDef<float>
+			{
+				Key = ClientSettingKeys.Overlay.ButtonScale,
+				SectionKey = "overlay",
+				Label = "Button Scale",
+				Description = "Scale of the sprint and jump buttons.",
+				ValueKind = SettingValueKind.Float,
+				ControlKind = SettingControlKind.Dropdown,
+				DefaultValue = 1f,
+				DisabledText = _ =>
+				{
+					if (Polytoria.Shared.XRBootstrap.IsActive)
+						return "Unavailable in VR.";
+					bool touchscreen = Polytoria.Shared.Globals.IsMobileBuild || Godot.DisplayServer.IsTouchscreenAvailable();
+					return touchscreen ? null : "Only available on touchscreen devices.";
+				},
+				Options =
+				[
+					new() { Value = 0.5f, Label = "0.5x" },
+					new() { Value = 0.75f, Label = "0.75x" },
+					new() { Value = 1f, Label = "1x" },
+					new() { Value = 1.25f, Label = "1.25x" },
+					new() { Value = 1.5f, Label = "1.5x" },
+					new() { Value = 1.75f, Label = "1.75x" },
+					new() { Value = 2f, Label = "2x" },
+				]
+			});
+
 		defs.Add(ClientSettingKeys.Advanced.ShowAdvancedSettings,
 			new SettingDef<bool>
 			{
@@ -183,6 +214,125 @@ public static class ClientSettingsRegistry
 				ValueKind = SettingValueKind.Bool,
 				ControlKind = SettingControlKind.Toggle,
 				DefaultValue = true,
+			});
+
+		defs.Add(ClientSettingKeys.Overlay.ShowConsoleButton,
+			new SettingDef<bool>
+			{
+				Key = ClientSettingKeys.Overlay.ShowConsoleButton,
+				SectionKey = "overlay",
+				Label = "Show Console Button",
+				Description = "Show the developer console button on screen.",
+				ValueKind = SettingValueKind.Bool,
+				ControlKind = SettingControlKind.Toggle,
+				DefaultValue = false,
+			});
+
+		defs.Add(ClientSettingKeys.VR.OpenXR,
+			new SettingDef<bool>
+			{
+				Key = ClientSettingKeys.VR.OpenXR,
+				SectionKey = "vr",
+				Label = "Enable OpenXR",
+				Description = "Initialize OpenXR for VR. Requires restart to take effect.",
+				ValueKind = SettingValueKind.Bool,
+				ControlKind = SettingControlKind.Toggle,
+				DefaultValue = true,
+				RequiresRestart = true
+			});
+
+		static string? RequiresVR(ISettingsContext _) =>
+			Polytoria.Shared.XRBootstrap.IsActive ? null : "Only available in VR.";
+
+		defs.Add(ClientSettingKeys.VR.LeftHanded,
+			new SettingDef<bool>
+			{
+				Key = ClientSettingKeys.VR.LeftHanded,
+				SectionKey = "vr",
+				Label = "Left Handed",
+				Description = "Toggle left hand as main hand.",
+				ValueKind = SettingValueKind.Bool,
+				ControlKind = SettingControlKind.Toggle,
+				DefaultValue = false,
+				DisabledText = RequiresVR
+			});
+
+		defs.Add(ClientSettingKeys.VR.HapticStrength,
+			new SettingDef<float>
+			{
+				Key = ClientSettingKeys.VR.HapticStrength,
+				SectionKey = "vr",
+				Label = "Haptic Strength",
+				Description = "Controller vibration strength.",
+				ValueKind = SettingValueKind.Float,
+				ControlKind = SettingControlKind.Slider,
+				DefaultValue = 100f,
+				MinValue = 0f,
+				MaxValue = 100f,
+				Step = 5f,
+				DisabledText = RequiresVR
+			});
+
+		defs.Add(ClientSettingKeys.VR.Grabbing,
+			new SettingDef<bool>
+			{
+				Key = ClientSettingKeys.VR.Grabbing,
+				SectionKey = "vr",
+				Label = "Grab Objects",
+				Description = "Grab and throw objects with the grip buttons.",
+				ValueKind = SettingValueKind.Bool,
+				ControlKind = SettingControlKind.Toggle,
+				DefaultValue = true,
+				DisabledText = RequiresVR
+			});
+
+		defs.Add(ClientSettingKeys.VR.SnapTurnAngle,
+			new SettingDef<float>
+			{
+				Key = ClientSettingKeys.VR.SnapTurnAngle,
+				SectionKey = "vr",
+				Label = "Snap Turn Angle",
+				Description = "Degrees to turn with every flick.",
+				ValueKind = SettingValueKind.Float,
+				ControlKind = SettingControlKind.Dropdown,
+				DefaultValue = 45f,
+				Options =
+				[
+					new() { Value = 30f, Label = "30°" },
+					new() { Value = 45f, Label = "45°" },
+					new() { Value = 60f, Label = "60°" },
+					new() { Value = 90f, Label = "90°" },
+				],
+				DisabledText = RequiresVR
+			});
+
+		defs.Add(ClientSettingKeys.VR.SmoothTurning,
+			new SettingDef<bool>
+			{
+				Key = ClientSettingKeys.VR.SmoothTurning,
+				SectionKey = "vr",
+				Label = "Smooth Turning",
+				Description = "Toggle continuously turning instead of snap turning.",
+				ValueKind = SettingValueKind.Bool,
+				ControlKind = SettingControlKind.Toggle,
+				DefaultValue = false,
+				DisabledText = RequiresVR
+			});
+
+		defs.Add(ClientSettingKeys.VR.SmoothTurnSpeed,
+			new SettingDef<float>
+			{
+				Key = ClientSettingKeys.VR.SmoothTurnSpeed,
+				SectionKey = "vr",
+				Label = "Smooth Turning Speed",
+				Description = "Turn speed in degrees per second.",
+				ValueKind = SettingValueKind.Float,
+				ControlKind = SettingControlKind.Slider,
+				DefaultValue = 90f,
+				MinValue = 30f,
+				MaxValue = 270f,
+				Step = 15f,
+				DisabledText = RequiresVR
 			});
 
 		SettingDef.ValidateAll(defs.Values);

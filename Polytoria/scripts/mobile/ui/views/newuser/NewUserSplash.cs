@@ -16,6 +16,11 @@ public partial class NewUserSplash : Control
 
 	public override void _Ready()
 	{
+		Color bg = MobileSettingsStore.GetBgColor();
+		bg.A = 0.788f;
+		StyleBoxFlat sb = new() { BgColor = bg };
+		AddThemeStyleboxOverride("panel", sb);
+
 		_registerBtn.Pressed += OnRegisterPressed;
 		_loginBtn.Pressed += OnLoginPressed;
 		_closeBtn.Pressed += OnClosePressed;

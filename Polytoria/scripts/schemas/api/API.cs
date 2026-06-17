@@ -25,7 +25,7 @@ public struct APIUserInfo
 	public APIUserThumbnail Thumbnail { get; set; }
 
 	[JsonPropertyName("playing")]
-	public object Playing { get; set; }
+	public int? Playing { get; set; }
 
 	[JsonPropertyName("netWorth")]
 	public int NetWorth { get; set; }
@@ -266,7 +266,7 @@ public struct APIPlaceInfo
 	public string AccessType { get; set; }
 
 	[JsonPropertyName("accessPrice")]
-	public object AccessPrice { get; set; }
+	public int? AccessPrice { get; set; }
 
 	[JsonPropertyName("createdAt")]
 	public DateTime CreatedAt { get; set; }

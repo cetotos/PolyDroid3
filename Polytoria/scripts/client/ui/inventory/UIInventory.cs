@@ -123,7 +123,7 @@ public partial class UIInventory : Control
 			}
 		}
 		base._Input(@event);
-		if (!CoreUIRoot.Singleton.Root.Input.IsGameFocused) return;
+		if (!CoreUIRoot.Singleton.Root.Input.IsGameFocused && !Polytoria.Shared.XRBootstrap.IsActive) return;
 		if (@event.IsActionPressed("equip_tool_cycle_left"))
 		{
 			int i = CurrentSlotIndex - 1;

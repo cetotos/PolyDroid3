@@ -16,6 +16,7 @@ public partial class UIChat : Control
 	private const int MaxMessages = 100;
 	private const float AspectRatio = 400f / 240f;
 	private const string ChatLabelPath = "res://scenes/client/ui/chat/chat_label.tscn";
+	private const string EmojiPickerPath = "res://scenes/client/ui/chat/emoji_picker.tscn";
 	[Export] private LineEdit _chatField = null!;
 	[Export] private Control _chatLayout = null!;
 	[Export] private ScrollContainer _chatScroll = null!;
@@ -53,21 +54,26 @@ public partial class UIChat : Control
 
 	public override void _Ready()
 	{
-		_chatField.TextSubmitted += OnTextSubmitted;
-		_chatField.GuiInput += OnGuiInput;
-		_chatField.TextChanged += OnChatFieldTextChanged;
-		Root.Chat.NewChatMessage.Connect(OnNewChatMessage);
-		Root.Chat.MessageDeclined.Connect(OnMessageDeclined);
-		Root.Chat.MessageReceived.Connect(OnMessageReceived);
-		_sendButton.Pressed += OnSendButtonPressed;
-		_resizeHandle.GuiInput += OnResizeHandleInput;
+		if (_emojiPicker == null)
+		{
+			PT.PrintErr("emojiPicker is null");
+			_emojiPicker = GD.Load<PackedScene>(EmojiPickerPath)?.Instantiate() as UIEmojiPicker;
+			if (_emojiPicker != null)
+			{
+				AddChild(_emojiPicker);
+			}
+		}
 
-		_emojiPicker.Initialize();
-		_emojiPicker.EmojiPicked += OnEmojiPicked;
-		_emojiButton.Pressed += OnEmojiButtonPressed;
-		_resizeHandle.MouseEntered += OnResizeHandleMouseEntered;
-		_resizeHandle.MouseExited += OnResizeHandleMouseExited;
-		GetViewport().SizeChanged += ClampToViewport;
+		if (_emojiPicker != null)
+		{
+			_emojiPicker.Initialize();
+		}
+		else
+		{
+			_emojiButton.Visible = false;
+		}
+
+		Hook();
 
 		if (!LocalPlayer.CanChat || LocalPlayer.IsAgeRestricted)
 		{
@@ -87,8 +93,49 @@ public partial class UIChat : Control
 		ClampToViewport();
 	}
 
+	public override void _EnterTree()
+	{
+		if (IsNodeReady())
+		{
+			Hook();
+		}
+		base._EnterTree();
+	}
+
 	public override void _ExitTree()
 	{
+		Unhook();
+		base._ExitTree();
+	}
+
+	private bool _hooked;
+
+	private void Hook()
+	{
+		if (_hooked) return;
+		_hooked = true;
+		_chatField.TextSubmitted += OnTextSubmitted;
+		_chatField.GuiInput += OnGuiInput;
+		_chatField.TextChanged += OnChatFieldTextChanged;
+		Root.Chat.NewChatMessage.Connect(OnNewChatMessage);
+		Root.Chat.MessageDeclined.Connect(OnMessageDeclined);
+		Root.Chat.MessageReceived.Connect(OnMessageReceived);
+		_sendButton.Pressed += OnSendButtonPressed;
+		_resizeHandle.GuiInput += OnResizeHandleInput;
+		_resizeHandle.MouseEntered += OnResizeHandleMouseEntered;
+		_resizeHandle.MouseExited += OnResizeHandleMouseExited;
+		if (_emojiPicker != null)
+		{
+			_emojiPicker.EmojiPicked += OnEmojiPicked;
+			_emojiButton.Pressed += OnEmojiButtonPressed;
+		}
+		GetViewport().SizeChanged += ClampToViewport;
+	}
+
+	private void Unhook()
+	{
+		if (!_hooked) return;
+		_hooked = false;
 		Root.Chat.NewChatMessage.Disconnect(OnNewChatMessage);
 		Root.Chat.MessageDeclined.Disconnect(OnMessageDeclined);
 		Root.Chat.MessageReceived.Disconnect(OnMessageReceived);
@@ -99,10 +146,12 @@ public partial class UIChat : Control
 		_resizeHandle.GuiInput -= OnResizeHandleInput;
 		_resizeHandle.MouseEntered -= OnResizeHandleMouseEntered;
 		_resizeHandle.MouseExited -= OnResizeHandleMouseExited;
-		_emojiPicker.EmojiPicked -= OnEmojiPicked;
-		_emojiButton.Pressed -= OnEmojiButtonPressed;
+		if (_emojiPicker != null)
+		{
+			_emojiPicker.EmojiPicked -= OnEmojiPicked;
+			_emojiButton.Pressed -= OnEmojiButtonPressed;
+		}
 		GetViewport().SizeChanged -= ClampToViewport;
-		base._ExitTree();
 	}
 
 	private void OnGuiInput(InputEvent @event)
@@ -111,7 +160,7 @@ public partial class UIChat : Control
 		{
 			if (k.Keycode == Key.Escape)
 			{
-				if (_isAutocompleteOpen || _emojiPicker.Visible)
+				if (_isAutocompleteOpen || (_emojiPicker != null && _emojiPicker.Visible))
 				{
 					CloseEmojiPicker();
 					GetViewport().SetInputAsHandled();
@@ -217,16 +266,18 @@ public partial class UIChat : Control
 
 	public void SetEnabled(bool enabled)
 	{
-		if (enabled && !IsOn)
+		if (enabled == IsOn) return;
+		IsOn = enabled;
+
+		if (enabled)
 		{
 			_animPlayer.Play("open");
 		}
-		else if (IsOn)
+		else
 		{
 			_animPlayer.Play("close");
 			CloseEmojiPicker();
 		}
-		IsOn = enabled;
 	}
 
 	private void OnNewChatMessage(Player from, string msg)
@@ -295,9 +346,9 @@ public partial class UIChat : Control
 
 	public override void _Input(InputEvent @event)
 	{
-		if (_emojiPicker.Visible && @event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } mb)
+		if (_emojiPicker != null && _emojiPicker.Visible && @event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
 		{
-			Vector2 clickPos = mb.GlobalPosition;
+			Vector2 clickPos = _emojiPicker.GetGlobalMousePosition();
 			Rect2 pickerRect = new(_emojiPicker.GlobalPosition, _emojiPicker.Size);
 			Rect2 buttonRect = new(_emojiButton.GlobalPosition, _emojiButton.Size);
 			if (!pickerRect.HasPoint(clickPos) && !buttonRect.HasPoint(clickPos))
@@ -364,6 +415,11 @@ public partial class UIChat : Control
 
 	private void OnEmojiButtonPressed()
 	{
+		if (_emojiPicker == null)
+		{
+			return;
+		}
+
 		if (!_isAutocompleteOpen && _emojiPicker.Visible)
 		{
 			_emojiPicker.Visible = false;
@@ -381,7 +437,7 @@ public partial class UIChat : Control
 
 	private void OnChatFieldTextChanged(string newText)
 	{
-		if (_suppressAutocomplete)
+		if (_suppressAutocomplete || _emojiPicker == null)
 			return;
 
 		if (_emojiPicker.Visible && !_isAutocompleteOpen)
@@ -436,7 +492,10 @@ public partial class UIChat : Control
 
 	private void CloseEmojiPicker()
 	{
-		_emojiPicker.Visible = false;
+		if (_emojiPicker != null)
+		{
+			_emojiPicker.Visible = false;
+		}
 		_isAutocompleteOpen = false;
 		_emojiButton.ButtonPressed = false;
 	}

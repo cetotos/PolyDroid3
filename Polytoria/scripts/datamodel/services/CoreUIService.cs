@@ -147,7 +147,8 @@ public sealed partial class CoreUIService : Instance
 
 	private void OnGameLoaded()
 	{
-		if (Root.Network.IsServer || Root.SessionType != World.SessionTypeEnum.Client) { return; }
+		bool isMobileSoloHost = Globals.IsMobileBuild && Root.Entry != null && Root.Entry.IsSoloTest;
+		if ((Root.Network.IsServer && !isMobileSoloHost) || Root.SessionType != World.SessionTypeEnum.Client) { return; }
 
 		CoreUIRoot coreUI = Globals.CreateInstanceFromScene<CoreUIRoot>(CoreUIPath);
 		coreUI.Root = Root;

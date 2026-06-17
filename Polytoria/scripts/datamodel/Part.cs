@@ -94,9 +94,6 @@ public partial class Part : Entity
 		UpdateMeshSize();
 		UpdateShape();
 
-		_meshMaterial = Globals.LoadMaterial(_material, Color.A);
-		_mesh.MaterialOverride = _meshMaterial;
-
 		UpdateColor();
 		UpdateShadow();
 	}
@@ -123,6 +120,7 @@ public partial class Part : Entity
 		Root.Bridge.SeparatedPartCount--;
 		_mesh?.Free();
 		_mesh = null;
+		_meshMaterial = null!;
 	}
 
 	[Editable, ScriptProperty, DefaultValue(ShapeEnum.Brick)]
@@ -224,9 +222,6 @@ public partial class Part : Entity
 			return;
 		}
 
-		_meshMaterial = Globals.LoadMaterial(_material, Color.A);
-		_mesh.MaterialOverride = _meshMaterial;
-
 		UpdateColor();
 	}
 
@@ -234,14 +229,14 @@ public partial class Part : Entity
 	{
 		if (_isSeparateMesh && _mesh != null)
 		{
-			Material targetMat = Globals.LoadMaterial(_material, Color.A);
+			Material baseMat = Globals.LoadMaterial(_material, Color.A);
+			Material targetMat = Globals.LoadColorMaterial(baseMat, _color);
+
 			if (!ReferenceEquals(_meshMaterial, targetMat))
 			{
 				_meshMaterial = targetMat;
 				_mesh.MaterialOverride = _meshMaterial;
 			}
-
-			_mesh.SetInstanceShaderParameter("color", _color);
 		}
 
 		UpdateCamLayer();

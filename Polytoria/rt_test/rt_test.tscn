@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://dgt8to1iaoyv8"]
+
+[ext_resource type="Script" uid="uid://cc61qko1y7g68" path="res://rt_test/raytracing.gd" id="1_rtgd"]
+
+[node name="RTTest" type="Node3D" unique_id=517749692]
+script = ExtResource("1_rtgd")
+
+[node name="TextureRect" type="TextureRect" parent="." unique_id=676760390]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

@@ -15,7 +15,7 @@ public partial class AssetLoader : Node
 {
 
 	private readonly record struct AssetCacheKey(ResourceType Type, uint ID, Vector2I? Resize);
-	private const int DefaultMaxConcurrentRequests = 5;
+	private const int DefaultMaxConcurrentRequests = 8;
 
 	public AssetLoader()
 	{

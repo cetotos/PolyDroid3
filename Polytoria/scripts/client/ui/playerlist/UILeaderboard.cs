@@ -37,6 +37,37 @@ public partial class UILeaderboard : TouchScrollContainer
 	{
 		_players = CoreUI.Root.Players;
 
+		Hook();
+
+		CreateHeader();
+		Refresh();
+	}
+
+	public override void _EnterTree()
+	{
+		if (IsNodeReady())
+		{
+			Hook();
+		}
+		base._EnterTree();
+	}
+
+	public override void _ExitTree()
+	{
+		Unhook();
+
+		_neutralTeamItem?.QueueFree();
+		_neutralTeamItem = null;
+
+		base._ExitTree();
+	}
+
+	private bool _hooked;
+
+	private void Hook()
+	{
+		if (_hooked) return;
+		_hooked = true;
 		_players.PlayerAdded.Connect(AddPlayer);
 		_players.PlayerRemoved.Connect(RemovePlayer);
 
@@ -49,14 +80,19 @@ public partial class UILeaderboard : TouchScrollContainer
 
 		Teams.TeamUpdateDispatch += QueueSortList;
 
-		VisibilityChanged += () => LeaderboardUpdate();
+		VisibilityChanged += LeaderboardUpdate;
 
-		CreateHeader();
-		Refresh();
+		foreach (var player in _playerToItem.Keys)
+		{
+			player.StatChanged.Connect(OnPlayerStatChanged);
+			player.TeamChanged.Connect(OnPlayerTeamChanged);
+		}
 	}
 
-	public override void _ExitTree()
+	private void Unhook()
 	{
+		if (!_hooked) return;
+		_hooked = false;
 		_players.PlayerAdded.Disconnect(AddPlayer);
 		_players.PlayerRemoved.Disconnect(RemovePlayer);
 
@@ -69,16 +105,13 @@ public partial class UILeaderboard : TouchScrollContainer
 
 		Teams.TeamUpdateDispatch -= QueueSortList;
 
+		VisibilityChanged -= LeaderboardUpdate;
+
 		foreach (var player in _playerToItem.Keys)
 		{
 			player.StatChanged.Disconnect(OnPlayerStatChanged);
 			player.TeamChanged.Disconnect(OnPlayerTeamChanged);
 		}
-
-		_neutralTeamItem?.QueueFree();
-		_neutralTeamItem = null;
-
-		base._ExitTree();
 	}
 
 	public override void _Process(double delta)

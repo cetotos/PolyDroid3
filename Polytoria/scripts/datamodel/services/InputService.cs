@@ -412,7 +412,8 @@ public sealed partial class InputService : Instance
 		if (Root.CoreUI != null && Root.CoreUI.CoreUI != null && Root.CoreUI.CoreUI.CoreUIActive) return false;
 		if (Root.Entry != null && !Root.Entry.IsFocused) return false;
 		if (Root.SessionType == World.SessionTypeEnum.Creator) return false;
-		if (Root.Network.IsServer) return false;
+		bool isMobileSoloHost = Globals.IsMobileBuild && Root.Entry != null && Root.Entry.IsSoloTest;
+		if (Root.Network.IsServer && !isMobileSoloHost) return false;
 		Control? focusOwner = GDNode.GetViewport().GuiGetFocusOwner();
 		if (focusOwner != null)
 		{
@@ -590,12 +591,20 @@ public sealed partial class InputService : Instance
 	public void StartGamepadVibration(float weakMagnitude, float strongMagnitude, float duration)
 	{
 		Input.StartJoyVibration(0, weakMagnitude, strongMagnitude, duration);
+		if (Globals.IsMobileBuild)
+		{
+			int durationMs = Mathf.RoundToInt(duration * 1000f);
+			float amp = Mathf.Max(weakMagnitude, strongMagnitude);
+			if (durationMs > 0 && amp > 0f)
+				Input.VibrateHandheld(durationMs);
+		}
 	}
 
 	[ScriptMethod]
 	public void StopGamepadVibration()
 	{
 		Input.StopJoyVibration(0);
+		if (Globals.IsMobileBuild) Input.VibrateHandheld(0);
 	}
 
 	[ScriptMethod]
@@ -684,7 +693,11 @@ public sealed partial class InputService : Instance
 
 	private void ProcessInputs()
 	{
-		if (Root != null && Root.Network.IsServer) return;
+		if (Root != null && Root.Network.IsServer)
+		{
+			bool isMobileSoloHost = Globals.IsMobileBuild && Root.Entry != null && Root.Entry.IsSoloTest;
+			if (!isMobileSoloHost) return;
+		}
 		if (!IsGameFocused) return;
 		foreach (InputAction a in MapData.Actions)
 		{

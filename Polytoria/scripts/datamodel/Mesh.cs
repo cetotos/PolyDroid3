@@ -401,7 +401,7 @@ public sealed partial class Mesh : Entity
 			animInfo.Add(new()
 			{
 				Name = animKey,
-				Length = anim.Length,
+				Length = (float)anim.Length,
 				IsPlaying = _animPlay.CurrentAnimation == animKey
 			});
 		}

@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://th3l6kkfjdl2" path="res://assets/textures/client/ui/menu_button/chat.png" id="4_c3g11"]
 [ext_resource type="PackedScene" uid="uid://catf08041fifw" path="res://scenes/client/ui/health/health_bar.tscn" id="5_6062u"]
 [ext_resource type="Texture2D" uid="uid://dhbxwwpkupvvt" path="res://assets/textures/client/ui/mobile_controls/jump.png" id="5_aji3h"]
+[ext_resource type="Texture2D" uid="uid://dl053xt4cekm0" path="res://assets/textures/client/ui/mobile_controls/sprint.png" id="29_sprnt"]
 [ext_resource type="Script" uid="uid://bj4rd3qyx7fr8" path="res://scripts/client/ui/playerlist/UILeaderboardOpener.cs" id="5_gbck0"]
 [ext_resource type="Texture2D" uid="uid://c226wtcviyejd" path="res://assets/textures/client/ui/menu_button/backpack.png" id="5_msdsf"]
 [ext_resource type="Script" uid="uid://c7vhlpnqh3xxg" path="res://scripts/client/ui/chat/UIChatButton.cs" id="5_px6m7"]
@@ -30,6 +31,8 @@
 [ext_resource type="PackedScene" uid="uid://bycaka8x6gyon" path="res://scenes/client/ui/core/debug_console_window.tscn" id="20_yrpeo"]
 [ext_resource type="PackedScene" uid="uid://b8dmrhqpwspyn" path="res://scenes/client/ui/purchase/purchase_prompt.tscn" id="28_gmv8i"]
 [ext_resource type="Texture2D" uid="uid://dgrks31ws6ixy" path="res://assets/textures/client/cursor/ctrl-lock/chevron.svg" id="28_tesjd"]
+[ext_resource type="Texture2D" uid="uid://cy32wmdvvyir7" path="res://assets/textures/ui-icons/code.svg" id="30_consic"]
+[ext_resource type="Script" uid="uid://bxconsbtn4kq1" path="res://scripts/client/ui/core/console/UIConsoleButton.cs" id="31_consbt"]
 
 [sub_resource type="Animation" id="Animation_mt8aq"]
 length = 0.001
@@ -459,7 +462,33 @@ text = "0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="Console" type="Button" parent="Control/MenuButton" unique_id=1900000003 node_paths=PackedStringArray("DevWindow")]
+custom_minimum_size = Vector2(48, 48)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+script = ExtResource("31_consbt")
+DevWindow = NodePath("../../DebugConsole")
+
+[node name="TextureRect" type="TextureRect" parent="Control/MenuButton/Console" unique_id=1900000004]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -16.0
+offset_top = -24.0
+offset_right = 16.0
+offset_bottom = 24.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("30_consic")
+expand_mode = 1
+stretch_mode = 5
+
 [node name="Backpack" type="Button" parent="Control/MenuButton" unique_id=1533108562 node_paths=PackedStringArray("InventoryUI")]
+visible = false
 custom_minimum_size = Vector2(48, 48)
 layout_mode = 2
 focus_mode = 0
@@ -543,16 +572,35 @@ grow_vertical = 0
 script = ExtResource("12_pljxg")
 
 [node name="TouchScreenButton" type="TouchScreenButton" parent="Control/JumpButton" unique_id=731100145]
-position = Vector2(-222, -200)
-scale = Vector2(0.6, 0.6)
+position = Vector2(-320, -250)
+scale = Vector2(0.85, 0.85)
 texture_normal = ExtResource("5_aji3h")
 action = "jump"
+visibility_mode = 1
+
+[node name="SprintButton" type="Control" parent="Control" unique_id=1900000001]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 0
+grow_vertical = 0
+script = ExtResource("12_pljxg")
+
+[node name="TouchScreenButton" type="TouchScreenButton" parent="Control/SprintButton" unique_id=1900000002]
+position = Vector2(-420, -488)
+scale = Vector2(0.68, 0.68)
+texture_normal = ExtResource("29_sprnt")
+action = "sprint"
 visibility_mode = 1
 
 [node name="PurchasePrompt" parent="Control" unique_id=1791377018 instance=ExtResource("28_gmv8i")]
 layout_mode = 1
 
 [node name="CtrlLockCursor" type="TextureRect" parent="Control" unique_id=1661787608]
+visible = false
 z_index = 9
 layout_mode = 1
 anchors_preset = 8

@@ -510,7 +510,7 @@ public sealed partial class World : Instance
 		if (WorldInfo.HasValue)
 		{
 			// Set Window title to game name
-			DisplayServer.WindowSetTitle($"{TitleEllipsis(WorldInfo.Value.Name, 50)} - Polytoria v{Globals.AppVersion}");
+			DisplayServer.WindowSetTitle($"{TitleEllipsis(WorldInfo.Value.Name, 50)} - PolyDroid 3 v{Globals.AppVersion}");
 
 			WorldInfoReady?.Invoke(WorldInfo.Value);
 		}

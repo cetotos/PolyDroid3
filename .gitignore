@@ -1,3 +1,7 @@
+# Embedded helper repos (vendored externally, not tracked here)
+Polytoria/modules/codehint/lua/
+Polytoria/modules/project-templates/
+
 ## -- Godot -- ##
 
 # Auto-generated Godot editor/import cache
@@ -11,6 +15,7 @@ Polytoria/export_presets.cfg
 # Compiled output directories
 bin/
 obj/
+out/
 
 # Debug symbol files
 *.pdb

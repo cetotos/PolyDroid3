@@ -1,7 +1,9 @@
 shader_type spatial;
 render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
-instance uniform vec4 color : source_color = vec4(1.0);
+// plain uniform instead of instance uniform, Android gl_compat reads garbage from instance uniforms after slot 256 so parts get random colors and everything appears broken.
+// i dont know why this only happens on Android gl_compat and not desktop
+uniform vec4 color : source_color = vec4(1.0);
 
 uniform sampler2D albedo : source_color;
 uniform bool use_albedo_texture = true;

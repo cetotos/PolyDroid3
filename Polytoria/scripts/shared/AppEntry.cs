@@ -24,9 +24,18 @@ public partial class AppEntry : Node
 		bool isLtChild = cmdargs.ContainsKey("ltchild");
 		bool isSolo = cmdargs.ContainsKey("solo");
 
+		bool wantsCreator = isCreator || OS.HasFeature("creator");
+		try { ApplyStartupRenderingMethod(wantsCreator); }
+		catch (Polytoria.Shared.RenderingDeviceSwitcher.SwitchingRenderingDeviceException) { return; }
+
 		if (cmdargs.TryGetValue("wait", out string? waitTime))
 		{
 			await Singleton.WaitAsync(float.Parse(waitTime));
+		}
+
+		if (!cmdargs.ContainsKey("noxr"))
+		{
+			XRBootstrap.TryEnable(GetViewport());
 		}
 
 		if (isApiRefGen && IsInGDEditor)
@@ -69,11 +78,40 @@ public partial class AppEntry : Node
 		}
 		if (OS.HasFeature("mobile-ui"))
 		{
-			entry = AppEntryEnum.MobileUI;
+			bool hasDeeplinkLaunch = cmdargs.ContainsKey("token")
+				|| cmdargs.ContainsKey("code")
+				|| cmdargs.ContainsKey("state");
+			if (OS.HasFeature("legacy-mobile-ui") || hasDeeplinkLaunch || !XRBootstrap.IsActive)
+			{
+				entry = AppEntryEnum.MobileUI;
+			}
+			else
+			{
+				entry = AppEntryEnum.MainMenu;
+			}
 		}
 		if (OS.HasFeature("renderer"))
 		{
 			entry = AppEntryEnum.Renderer;
+		}
+
+		bool isDesktopClient = entry == AppEntryEnum.Client
+			&& !OS.HasFeature("mobile-ui")
+			&& !OS.HasFeature("mobile")
+			&& !OS.HasFeature("server")
+			&& !Globals.IsServerBuild
+			&& !isCreator;
+		bool hasGameLaunchArgs = cmdargs.ContainsKey("address")
+			|| isSolo
+			|| isLtChild
+			|| cmdargs.ContainsKey("token")
+			|| cmdargs.ContainsKey("code")
+			|| cmdargs.ContainsKey("state")
+			|| cmdargs.ContainsKey("server")
+			|| cmdargs.ContainsKey("child");
+		if (isDesktopClient && !hasGameLaunchArgs)
+		{
+			entry = XRBootstrap.IsActive ? AppEntryEnum.MainMenu : AppEntryEnum.MobileUI;
 		}
 
 		if (isSolo)
@@ -82,6 +120,11 @@ public partial class AppEntry : Node
 		}
 
 		if (isLtChild)
+		{
+			entry = AppEntryEnum.Client;
+		}
+
+		if (cmdargs.ContainsKey("address"))
 		{
 			entry = AppEntryEnum.Client;
 		}
@@ -95,5 +138,35 @@ public partial class AppEntry : Node
 			}
 			QueueFree();
 		}).CallDeferred();
+	}
+
+	private const string ClientSettingsPath = "user://settings_client.json";
+	private const string CreatorSettingsPath = "user://creator/creator_settings.json";
+
+	private static void ApplyStartupRenderingMethod(bool wantsCreator)
+	{
+		if (IsMobileBuild || IsServerBuild || IsInGDEditor) return;
+		string path = wantsCreator ? CreatorSettingsPath : ClientSettingsPath;
+		if (!Godot.FileAccess.FileExists(path)) return;
+
+		string json = Godot.FileAccess.GetFileAsString(path);
+		if (string.IsNullOrEmpty(json)) return;
+
+		Polytoria.Shared.Settings.RenderingMethodOption method = Polytoria.Shared.Settings.RenderingMethodOption.Auto;
+		Polytoria.Shared.Settings.GraphicsApiOption api = Polytoria.Shared.Settings.GraphicsApiOption.Auto;
+		using (System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(json))
+		{
+			if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object) return;
+			if (doc.RootElement.TryGetProperty(Polytoria.Shared.Settings.SharedSettingKeys.Graphics.RenderingMethod, out System.Text.Json.JsonElement methodEl)
+				&& methodEl.ValueKind == System.Text.Json.JsonValueKind.String
+				&& System.Enum.TryParse(methodEl.GetString(), true, out Polytoria.Shared.Settings.RenderingMethodOption parsedMethod))
+				method = parsedMethod;
+			if (doc.RootElement.TryGetProperty(Polytoria.Shared.Settings.SharedSettingKeys.Graphics.GraphicsApi, out System.Text.Json.JsonElement apiEl)
+				&& apiEl.ValueKind == System.Text.Json.JsonValueKind.String
+				&& System.Enum.TryParse(apiEl.GetString(), true, out Polytoria.Shared.Settings.GraphicsApiOption parsedApi))
+				api = parsedApi;
+		}
+
+		Polytoria.Shared.RenderingDeviceSwitcher.Apply(method, api);
 	}
 }

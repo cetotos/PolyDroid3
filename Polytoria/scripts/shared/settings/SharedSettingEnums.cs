@@ -34,6 +34,13 @@ public enum RenderingMethodOption
 	Compatibility = 2
 }
 
+public enum GraphicsApiOption
+{
+	Auto = -1,
+	Vulkan = 0,
+	Direct3D12 = 1
+}
+
 public enum ShadowQuality
 {
 	Off,

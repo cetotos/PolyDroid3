@@ -50,8 +50,11 @@ public sealed partial class ClientSettingsService : SettingsServiceBase
 			GraphicsPresetManager.ApplyCurrentPreset(this);
 		}
 
+		ApplyAutoOff();
+
 		RenderingMethodOption renderingMethod = Get<RenderingMethodOption>(SharedSettingKeys.Graphics.RenderingMethod);
-		RenderingDeviceSwitcher.Switch(renderingMethod);
+		GraphicsApiOption graphicsApi = Get<GraphicsApiOption>(SharedSettingKeys.Graphics.GraphicsApi);
+		RenderingDeviceSwitcher.Apply(renderingMethod, graphicsApi);
 
 		if (!settingsExists)
 			QueueSave();

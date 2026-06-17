@@ -17,6 +17,10 @@ public sealed partial class Gizmos : Node
 	public const float GizmoArrowSize = 0.35f;
 	public const float MaxZ = 1000000f;
 
+	private static bool TouchSizing => Polytoria.Shared.Globals.IsMobileBuild || DisplayServer.IsTouchscreenAvailable();
+	public static float GizmoSizeMul => TouchSizing ? 2.5f : 1f;
+	public static float GrabRadiusMul => TouchSizing ? 1.8f : 1f;
+
 	public World Root = null!;
 	private readonly Dictionary<Dynamic, SelectionBox> _selectionBoxes = [];
 
@@ -104,6 +108,7 @@ public sealed partial class Gizmos : Node
 
 	private void OnResizeDragStarted()
 	{
+		Polytoria.Shared.Globals.GizmoDragging = true;
 		_pivotStart = Selected[0].GetGlobalTransform();
 		_history.NewAction("Resize Transform");
 		RecordHistoryUndo();
@@ -180,6 +185,7 @@ public sealed partial class Gizmos : Node
 
 	private void OnScaleDragStarted()
 	{
+		Polytoria.Shared.Globals.GizmoDragging = true;
 		_pivotStart = GetSelectionPivot();
 		_initialRelativeTransforms.Clear();
 
@@ -236,6 +242,7 @@ public sealed partial class Gizmos : Node
 
 	private void OnRotateDragStarted()
 	{
+		Polytoria.Shared.Globals.GizmoDragging = true;
 		_pivotStart = GetSelectionPivot();
 		_initialRelativeTransforms.Clear();
 
@@ -302,6 +309,7 @@ public sealed partial class Gizmos : Node
 
 	private void OnMoveDragStarted()
 	{
+		Polytoria.Shared.Globals.GizmoDragging = true;
 		_dragStartOffsets.Clear();
 
 		foreach (Dynamic item in Selected)
@@ -343,6 +351,9 @@ public sealed partial class Gizmos : Node
 
 	public override void _Process(double delta)
 	{
+		Polytoria.Shared.Globals.GizmoDragging =
+			Move.IsDragging || Rotate.IsDragging || Scale.IsDragging || Resize.IsDragging || _isDraggingDyn;
+
 		bool selectionValid = Selected.Count > 0;
 
 		Move.Visible = CreatorService.Interface.ToolMode == ToolModeEnum.Move && selectionValid;
@@ -495,7 +506,7 @@ public sealed partial class Gizmos : Node
 
 		if (@event is InputEventMouseButton button)
 		{
-			if (HoveringGizmos || HoveringUIGizmo) { return; }
+			if (HoveringGizmos || HoveringUIGizmo || PointerOverActiveGizmo()) { return; }
 			if (button.ButtonIndex != MouseButton.Left) { return; }
 			if (button.Pressed)
 			{
@@ -580,6 +591,7 @@ public sealed partial class Gizmos : Node
 				{
 					_isDraggingDyn = true;
 					_isDragPending = false;
+					Polytoria.Shared.Globals.GizmoDragging = true;
 					_history.NewAction("Select Drag Transform");
 					RecordHistoryUndo();
 				}
@@ -785,5 +797,18 @@ public sealed partial class Gizmos : Node
 		if (Selected.Count == 0) return Transform3D.Identity;
 
 		return GetCenterPivot([.. Selected]);
+	}
+
+	private bool PointerOverActiveGizmo()
+	{
+		if (Selected.Count == 0) return false;
+
+		return CreatorService.Interface.ToolMode switch
+		{
+			ToolModeEnum.Move => Move.PickHandleAtPointer(),
+			ToolModeEnum.Rotate => Rotate.PickHandleAtPointer(),
+			ToolModeEnum.Scale => Resize.PickHandleAtPointer() || Scale.PickHandleAtPointer(),
+			_ => false,
+		};
 	}
 }

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 24 24"
+   fill="none"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="g10"
+     transform="translate(0,0.97746067)">
+    <path
+       d="M 21.441738,16.265191 H 2.558262 Z"
+       stroke="#ffffff"
+       stroke-width="2"
+       stroke-linecap="round"
+       stroke-linejoin="round"
+       id="path1" />
+    <path
+       d="M 21.349517,5.7787429 12,16.266383 4.3932511,7.7336596 12,16.266383 Z"
+       stroke="#ffffff"
+       stroke-width="2"
+       stroke-linecap="round"
+       stroke-linejoin="round"
+       id="path8" />
+    <path
+       d="m 17.464928,6.0754909 3.884589,-0.296748 -0.05089,3.8990897 0.05089,-3.8990897 z"
+       stroke="#ffffff"
+       stroke-width="2.00001"
+       stroke-linecap="round"
+       stroke-linejoin="round"
+       id="path9" />
+  </g>
+</svg>

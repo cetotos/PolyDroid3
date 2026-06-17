@@ -16,10 +16,12 @@ namespace Polytoria.Providers.AssetLoaders;
 
 public class PTAssetProvider : IAssetProvider
 {
-	private const string RootUrl = Globals.ApiEndpoint + "v1/assets/";
+	// hardcode the Polytoria API and load assets from the client, as its (maybe?) faster, and less resources on the server
+	private const string RootUrl = "https://api.polytoria.com/v1/assets/";
 	private const string ServeURL = RootUrl + "serve/";
 	private const string ServeMeshURL = RootUrl + "serve-mesh/";
 	private const string ServeAudioURL = RootUrl + "serve-audio/";
+	private const string SelfHostedServeURL = Globals.ApiEndpoint + "v1/assets/serve/";
 	private readonly PTHttpClient _client = new();
 
 	public async Task<CacheItem> LoadResource(CacheItem item)
@@ -28,13 +30,21 @@ public class PTAssetProvider : IAssetProvider
 		_client.DefaultRequestHeaders["Authorization"] = PolyCreatorAPI.Token;
 #endif
 
-		string url = GetAssetServeURL(item.ID, item.Type);
+		string imageUrl;
+		if (!string.IsNullOrEmpty(item.DirectURL))
+		{
+			imageUrl = item.DirectURL;
+		}
+		else
+		{
+			string url = GetAssetServeURL(item.ID, item.Type);
+			ServeResponse response = await _client.GetFromJsonAsync(url, ServeResponseGenerationContext.Default.ServeResponse);
+			imageUrl = response.Url;
+		}
 
-		ServeResponse response = await _client.GetFromJsonAsync(url, ServeResponseGenerationContext.Default.ServeResponse);
-		byte[] buffer = await _client.GetByteArrayAsync(response.Url);
+		byte[] buffer = await _client.GetByteArrayAsync(imageUrl);
 		item.SizeBytes = buffer.LongLength;
-
-		item.DirectURL = response.Url;
+		item.DirectURL = imageUrl;
 
 		switch (item.Type)
 		{
@@ -47,10 +57,8 @@ public class PTAssetProvider : IAssetProvider
 
 					Node3D scene = (Node3D)document.GenerateScene(state);
 
-					// Remove arbitrary nodes that may come with the GLTF (eg. Rigidbodies)
 					RemoveNonMeshNodes(scene);
 
-					// Set mipmap texture filter for meshes
 					SetMipmapTextureFilter(scene);
 
 					TaskCompletionSource<PackedScene> callback = new();
@@ -86,12 +94,18 @@ public class PTAssetProvider : IAssetProvider
 				{
 					Image image = new();
 					image.LoadPngFromBuffer(buffer);
-					image.GenerateMipmaps();
-					image.FixAlphaEdges();
+
+					bool isThumbnail = item.Type != ResourceType.Asset && item.Type != ResourceType.Decal;
+					if (!isThumbnail)
+					{
+						image.GenerateMipmaps();
+						image.FixAlphaEdges();
+					}
 
 					if (item.Resize != null)
 					{
-						image.Resize(item.Resize.Value.X, item.Resize.Value.Y, Image.Interpolation.Lanczos);
+						Image.Interpolation interp = isThumbnail ? Image.Interpolation.Bilinear : Image.Interpolation.Lanczos;
+						image.Resize(item.Resize.Value.X, item.Resize.Value.Y, interp);
 					}
 
 					item.Resource = ImageTexture.CreateFromImage(image);
@@ -112,7 +126,7 @@ public class PTAssetProvider : IAssetProvider
 			ResourceType.Audio => ServeAudioURL + id,
 			ResourceType.AssetThumbnail => ServeURL + id + "/assetThumbnail",
 			ResourceType.PlaceThumbnail => ServeURL + id + "/placeThumbnail",
-			ResourceType.PlaceIcon => ServeURL + id + "/placeIcon",
+			ResourceType.PlaceIcon => SelfHostedServeURL + id + "/placeIcon",
 			ResourceType.UserThumbnail => ServeURL + id + "/userAvatar",
 			ResourceType.UserHeadshot => ServeURL + id + "/userAvatarHeadshot",
 			ResourceType.GuildThumbnail => ServeURL + id + "/guildIcon",
@@ -159,13 +173,6 @@ public class PTAssetProvider : IAssetProvider
 				{
 					if (meshInstance.GetActiveMaterial(s) is BaseMaterial3D material)
 					{
-						if (material.AlbedoTexture is ImageTexture albedoTex)
-						{
-							Image img = albedoTex.GetImage();
-							img.GenerateMipmaps();
-							material.AlbedoTexture = ImageTexture.CreateFromImage(img);
-						}
-
 						material.TextureFilter = BaseMaterial3D.TextureFilterEnum.LinearWithMipmaps;
 					}
 				}

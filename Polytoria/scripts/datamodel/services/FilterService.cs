@@ -24,21 +24,24 @@ public sealed partial class FilterService : Instance
 		LoadFilter();
 	}
 
+	private static bool _loading;
+
 	private static async void LoadFilter()
 	{
+		if (_loading) return;
+		_loading = true;
 		try
 		{
-			if (OS.HasFeature("offline"))
-			{
-				_profanityList = ["swear"];
-				return;
-			}
 			string rawdata = await PolyAPI.GetProfanityList();
 			_profanityList = [.. rawdata.Split(["\n"], StringSplitOptions.RemoveEmptyEntries)];
 		}
 		catch (Exception err)
 		{
 			PT.PrintErr("Failed to get profanity list: ", err);
+		}
+		finally
+		{
+			_loading = false;
 		}
 	}
 
@@ -48,7 +51,7 @@ public sealed partial class FilterService : Instance
 		if (_profanityList.Count == 0)
 		{
 			LoadFilter();
-			return new string('*', input.Length);
+			return input;
 		}
 		string[] words = input.Split([" "], StringSplitOptions.RemoveEmptyEntries);
 		List<string> filteredWords = [];

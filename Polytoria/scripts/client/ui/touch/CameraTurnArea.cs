@@ -14,6 +14,7 @@ public partial class CameraTurnArea : InputFallbackBase
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
+		if (Polytoria.Shared.Globals.FreezeWorldInput) { return; }
 		if (@event is InputEventScreenDrag eventDrag)
 		{
 			if (_justZoomed)

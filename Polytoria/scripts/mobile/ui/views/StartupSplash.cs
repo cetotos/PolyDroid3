@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 using Godot;
+using Polytoria.Mobile;
 
 namespace Polytoria.Mobile.UI;
 
@@ -10,6 +11,8 @@ public partial class StartupSplash : Control
 {
 	public override void _Ready()
 	{
+		StyleBoxFlat sb = new() { BgColor = MobileSettingsStore.GetBgColor() };
+		AddThemeStyleboxOverride("panel", sb);
 		Visible = true;
 	}
 

@@ -1,8 +1,7 @@
-<Project Sdk="Godot.NET.Sdk/4.6.2">
+﻿<Project Sdk="Godot.NET.Sdk/4.7.0-beta.4">
 	<PropertyGroup>
 		<TargetFramework>net10.0</TargetFramework>
 		<Nullable>enable</Nullable>
-		<PublishAot>true</PublishAot>
 		<EnableDynamicLoading>true</EnableDynamicLoading>
 		<InvariantGlobalization>true</InvariantGlobalization>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -11,6 +10,7 @@
 
 	<!-- NativeAOT Configuration for Android and iOS -->
 	<PropertyGroup Condition=" '$(GodotTargetPlatform)' == 'android' Or '$(GodotTargetPlatform)' == 'ios' ">
+		<PublishAot>true</PublishAot>
 		<DisableUnsupportedError>true</DisableUnsupportedError>
 		<PublishAotUsingRuntimePack>true</PublishAotUsingRuntimePack>
 		<IsCreator>false</IsCreator>
@@ -39,6 +39,17 @@
 		<NativeLibrary Include="native/luau/iossimulator-arm64/libLuau.Bytecode.a" />
 		<NativeLibrary Include="native/luau/iossimulator-arm64/libLuau.Common.a" />
 	</ItemGroup>
+
+	<PropertyGroup Condition=" ('$(GodotTargetPlatform)' == 'windows' Or '$(GodotTargetPlatform)' == 'linuxbsd') And ('$(Configuration)' == 'ExportDebug' Or '$(Configuration)' == 'ExportRelease') ">
+		<PublishAot>true</PublishAot>
+		<DisableUnsupportedError>true</DisableUnsupportedError>
+		<PublishAotUsingRuntimePack>true</PublishAotUsingRuntimePack>
+	</PropertyGroup>
+
+	<PropertyGroup Condition=" ('$(GodotTargetPlatform)' == 'windows' Or '$(GodotTargetPlatform)' == 'linuxbsd') And '$(Configuration)' == 'ExportRelease' ">
+		<IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+		<StripSymbols>true</StripSymbols>
+	</PropertyGroup>
 
 	<ItemGroup>
 		<!-- Trimmer ignores, this is currently required for Godot NativeAOT projects -->
@@ -103,7 +114,7 @@
 
 	<!-- ExportDebug build (Build all) -->
 	<PropertyGroup Condition="'$(Configuration)' == 'ExportDebug' Or '$(Configuration)' == 'Debug'">
-		<DefineConstants>$(DefineConstants);DEBUG</DefineConstants>
+		<DefineConstants>$(DefineConstants);DEBUG;ALLOW_SELFHOST</DefineConstants>
 		<IsCreator>true</IsCreator>
 		<IsMobile>true</IsMobile>
 		<DebugType>Full</DebugType>
@@ -119,11 +130,6 @@
 	<!-- Strip out Mobile -->
 	<ItemGroup Condition="'$(IsMobile)' != 'true'">
 		<Compile Remove="scripts/mobile/**/*.cs" />
-	</ItemGroup>
-
-	<!-- Strip out Executor -->
-	<ItemGroup Condition="'$(Configuration)' == 'ExportRelease'">
-		<Compile Remove="scripts/client/executor/**/*.cs" />
 	</ItemGroup>
 
 	<!-- Strip out Datamodel Tests -->

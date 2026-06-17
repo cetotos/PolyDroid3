@@ -33,7 +33,7 @@ corner_radius_top_right = 8
 corner_radius_bottom_right = 8
 corner_radius_bottom_left = 8
 
-[node name="Control" type="ColorRect" unique_id=882536811 node_paths=PackedStringArray("_playButton", "_genreLabel", "_placeNameLabel", "_creatorNameLabel", "_thumbnailRect", "_thumbnailGradient")]
+[node name="Control" type="ColorRect" unique_id=882536811 node_paths=PackedStringArray("_playButton", "_genreLabel", "_placeNameLabel", "_creatorNameLabel", "_descriptionLabel", "_thumbnailRect", "_thumbnailGradient")]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -41,12 +41,13 @@ offset_right = -768.0
 grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("1_fkwcp")
-color = Color(0.12941177, 0.24313726, 0.38039216, 1)
+color = Color(0.02745098, 0.047058824, 0.07450981, 1)
 script = ExtResource("2_o0lns")
 _playButton = NodePath("Play")
 _genreLabel = NodePath("ScrollContainer/VBoxContainer/PanelContainer/Layout/Layout/HBoxContainer/Label")
 _placeNameLabel = NodePath("ScrollContainer/VBoxContainer/PanelContainer/Layout/Layout/Label3")
 _creatorNameLabel = NodePath("ScrollContainer/VBoxContainer/PanelContainer/Layout/Layout/Label")
+_descriptionLabel = NodePath("ScrollContainer/VBoxContainer/PanelContainer/Layout/Description")
 _thumbnailRect = NodePath("ScrollContainer/VBoxContainer/Control/TextureRect2")
 _thumbnailGradient = NodePath("ScrollContainer/VBoxContainer/Control/TextureRect2/TextureRect")
 
@@ -81,7 +82,7 @@ expand_mode = 1
 stretch_mode = 6
 
 [node name="TextureRect" type="TextureRect" parent="ScrollContainer/VBoxContainer/Control/TextureRect2" unique_id=1034406600]
-modulate = Color(0.12919998, 0.24206008, 0.38, 1)
+modulate = Color(0.02745098, 0.047058824, 0.07450981, 1)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -122,13 +123,27 @@ theme_override_font_sizes/font_size = 32
 text = "Place Name"
 autowrap_mode = 3
 
-[node name="Label" type="Label" parent="ScrollContainer/VBoxContainer/PanelContainer/Layout/Layout" unique_id=1397042833]
+[node name="Label" type="LinkButton" parent="ScrollContainer/VBoxContainer/PanelContainer/Layout/Layout" unique_id=1397042833]
 layout_mode = 2
+size_flags_horizontal = 0
+mouse_default_cursor_shape = 2
 theme_override_font_sizes/font_size = 16
 text = "By Username"
 
 [node name="TextureRect" type="TextureRect" parent="ScrollContainer/VBoxContainer/PanelContainer/Layout/Layout" unique_id=1956159128]
 layout_mode = 2
+
+[node name="DescriptionHeader" type="Label" parent="ScrollContainer/VBoxContainer/PanelContainer/Layout" unique_id=1956159200]
+modulate = Color(1, 1, 1, 0.78431374)
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "DESCRIPTION"
+
+[node name="Description" type="Label" parent="ScrollContainer/VBoxContainer/PanelContainer/Layout" unique_id=1956159201]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = ""
+autowrap_mode = 3
 
 [node name="Play" type="Button" parent="." unique_id=1628177988]
 clip_children = 1

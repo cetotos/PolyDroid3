@@ -17,6 +17,7 @@ public abstract partial class SettingsServiceBase : Node, ISettingsContext
 	protected readonly Dictionary<string, object?> _values = [];
 	private bool _saveQueued;
 	private bool _headless;
+	private bool _autoOffRunning;
 
 	public event Action<SettingChangedEvent>? Changed;
 
@@ -75,6 +76,32 @@ public abstract partial class SettingsServiceBase : Node, ISettingsContext
 		Changed?.Invoke(new SettingChangedEvent(key, oldValue, normalized, def.RequiresRestart));
 		OnAfterSet(key, normalized);
 		QueueSave();
+		ApplyAutoOff();
+	}
+
+	protected void ApplyAutoOff()
+	{
+		if (_autoOffRunning)
+			return;
+
+		_autoOffRunning = true;
+		try
+		{
+			foreach (var pair in Registry)
+			{
+				SettingDef def = pair.Value;
+				if (!def.AutoOffWhenDisabled || def.DisabledText == null)
+					continue;
+				if (GetUntyped(pair.Key) is not bool on || !on)
+					continue;
+				if (def.DisabledText(this) != null)
+					Set(pair.Key, false);
+			}
+		}
+		finally
+		{
+			_autoOffRunning = false;
+		}
 	}
 
 	protected virtual void OnAfterSet(string key, object normalizedValue)
