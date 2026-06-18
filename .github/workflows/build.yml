@@ -95,6 +95,8 @@ jobs:
           dotnet restore
           godot --headless --verbose --build-solutions --quit
           godot --headless --path . --export-debug "Client Linux" "$OUT/PolyDroid3-${VERSION}-Linux.x86_64"
+          cp -r Polytoria/data_Polytoria_linuxbsd_x86_64 "$OUT/" 2>/dev/null || true
+          cp -r Polytoria/.godot/mono/temp/bin/Debug/*.dll "$OUT/" 2>/dev/null || true
 
       - name: Upload
         uses: actions/upload-artifact@v4
