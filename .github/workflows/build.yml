@@ -167,6 +167,9 @@ jobs:
           dotnet restore
           godot --headless --verbose --build-solutions --quit
           dotnet publish Polytoria.csproj -c ExportDebug -r linux-bionic-arm64 -p:GodotTargetPlatform=android --self-contained
+          ANDROID_SRC=$(find "$HOME" -name android_source.zip -path '*export_templates*' 2>/dev/null | head -1)
+          mkdir -p android/build
+          unzip -o -q "$ANDROID_SRC" -d android/build/
           mkdir -p android/build/libs/debug/arm64-v8a
           cp .godot/mono/temp/bin/ExportDebug/linux-bionic-arm64/publish/Polytoria.so android/build/libs/debug/arm64-v8a/Polytoria.so
           godot --headless --path . --export-debug "Client Android APK" "$OUT/PolyDroid3-${VERSION}.apk"
@@ -240,6 +243,9 @@ jobs:
           dotnet restore
           godot --headless --verbose --build-solutions --quit
           dotnet publish Polytoria.csproj -c ExportDebug -r linux-bionic-arm64 -p:GodotTargetPlatform=android --self-contained
+          ANDROID_SRC=$(find "$HOME" -name android_source.zip -path '*export_templates*' 2>/dev/null | head -1)
+          mkdir -p android/build
+          unzip -o -q "$ANDROID_SRC" -d android/build/
           mkdir -p android/build/libs/debug/arm64-v8a
           cp .godot/mono/temp/bin/ExportDebug/linux-bionic-arm64/publish/Polytoria.so android/build/libs/debug/arm64-v8a/Polytoria.so
           godot --headless --path . --export-debug "Creator Android APK" "$OUT/PolyDroid3-${VERSION}-Creator.apk"
@@ -303,7 +309,7 @@ jobs:
           fi
           name=$(basename "$project" .xcodeproj)
           xcodebuild -project "$project" -target "$name" -configuration Debug -sdk iphoneos \
-            -derivedDataPath build \
+            CONFIGURATION_BUILD_DIR="$PWD/build" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" CODE_SIGN_ENTITLEMENTS=""
           app=$(find build -name '*.app' -type d | head -1)
           if [ -z "$app" ]; then
