@@ -30,8 +30,6 @@ public static class RenderingDeviceSwitcher
 
 	public static void Apply(RenderingMethodOption method, GraphicsApiOption api)
 	{
-		// Mobile are locked to one renderer only, don't change
-		if (Globals.IsMobileBuild) return;
 		if (Globals.IsInGDEditor) return;
 
 		string? desiredMethod = method == RenderingMethodOption.Auto
@@ -52,8 +50,17 @@ public static class RenderingDeviceSwitcher
 			return;
 		}
 
+		string[] restartArgs = GetRestartArgs(args, desiredMethod, desiredDriver);
+
 		// relaunch ourselves with the right renderer then bail. the throw isn't a real error
-		OS.CreateProcess(OS.GetExecutablePath(), GetRestartArgs(args, desiredMethod, desiredDriver));
+		if (Globals.IsMobileBuild)
+		{
+			OS.SetRestartOnExit(true, restartArgs);
+		}
+		else
+		{
+			OS.CreateProcess(OS.GetExecutablePath(), restartArgs);
+		}
 
 		Globals.Singleton.Quit(force: true);
 		throw new SwitchingRenderingDeviceException();
