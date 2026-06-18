@@ -266,6 +266,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Select latest Xcode
+        run: |
+          ls -d /Applications/Xcode_*.app
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          xcodebuild -version
+          echo "iphoneos SDK: $(xcrun --sdk iphoneos --show-sdk-version)"
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
