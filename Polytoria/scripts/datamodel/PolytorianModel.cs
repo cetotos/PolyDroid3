@@ -1109,6 +1109,7 @@ public sealed partial class PolytorianModel : CharacterModel
 
 		bool hasTool = false;
 		List<Task> asyncLoads = [];
+		List<AvatarToolInfo> playerTools = [];
 
 		foreach (APIAvatarAsset asset in avatarData.Assets)
 		{
@@ -1144,10 +1145,10 @@ public sealed partial class PolytorianModel : CharacterModel
 			}
 			else if (asset.Type == "tool")
 			{
-				if (Parent is Player plr && loadTool)
+				if (Parent is Player && loadTool)
 				{
 					hasTool = true;
-					asyncLoads.Add(LoadToolForPlayerAsync(asset, plr, myCount));
+					playerTools.Add(new AvatarToolInfo { ID = asset.ID, Name = asset.Name, Path = asset.Path ?? "" });
 				}
 				else if (Parent is NPC npc && loadToolNpc)
 				{
@@ -1160,6 +1161,12 @@ public sealed partial class PolytorianModel : CharacterModel
 		if (asyncLoads.Count > 0)
 		{
 			await Task.WhenAll(asyncLoads);
+		}
+
+		if (loadTool && myCount == _loadAppearanceCount && !IsDeleted
+			&& Parent is Player owner && owner.PeerID == Root.Network.LocalPeerID)
+		{
+			owner.RequestAvatarTools(playerTools);
 		}
 
 		AssetLoadCheckout();
@@ -1197,21 +1204,6 @@ public sealed partial class PolytorianModel : CharacterModel
 			if (myCount != _loadAppearanceCount) { accessory?.Delete(); return; }
 			if (IsDeleted) { accessory?.Delete(); return; }
 			accessory?.Parent = this;
-		}
-		catch (Exception ex)
-		{
-			PT.PrintErr(ex);
-		}
-	}
-
-	private async Task LoadToolForPlayerAsync(APIAvatarAsset asset, Player plr, int myCount)
-	{
-		try
-		{
-			Tool? tool = await Root.Insert.ToolAsync(asset.ID, asset.Path);
-			if (myCount != _loadAppearanceCount) { tool?.Delete(); return; }
-			if (IsDeleted) { tool?.Delete(); return; }
-			tool?.Parent = plr.Inventory;
 		}
 		catch (Exception ex)
 		{

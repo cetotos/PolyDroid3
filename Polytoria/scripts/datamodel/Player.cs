@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 using Godot;
+using MemoryPack;
 using Polytoria.Attributes;
 using Polytoria.Client.UI.Chat;
 #if CREATOR
@@ -1145,6 +1146,34 @@ public sealed partial class Player : NPC
 		}
 	}
 
+	private readonly List<Tool> _avatarTools = [];
+
+	public void RequestAvatarTools(List<AvatarToolInfo> tools)
+	{
+		RpcId(1, nameof(NetLoadAvatarTools), SerializeUtils.Serialize<AvatarToolInfo[]>([.. tools]));
+	}
+
+	[NetRpc(AuthorityMode.Any, TransferMode = TransferMode.Reliable, CallLocal = true)]
+	private void NetLoadAvatarTools(byte[] raw)
+	{
+		if (!Root.Network.IsServer) return;
+		if (RemoteSenderId != PeerID && RemoteSenderId != 0) return;
+
+		foreach (Tool tool in _avatarTools)
+		{
+			if (!tool.IsDeleted) tool.Delete();
+		}
+		_avatarTools.Clear();
+
+		AvatarToolInfo[] tools = SerializeUtils.Deserialize<AvatarToolInfo[]>(raw) ?? [];
+		foreach (AvatarToolInfo info in tools)
+		{
+			Tool tool = Root.Insert.BuildTool(info.ID, info.Name, info.Path);
+			tool.Parent = Inventory;
+			_avatarTools.Add(tool);
+		}
+	}
+
 	internal override bool TransformNetworkCheck(TransformPayloadDto newTransform)
 	{
 		// TODO: Make sanity checks here
@@ -1176,4 +1205,12 @@ public sealed partial class Player : NPC
 		Default,
 		Scripted
 	}
+}
+
+[MemoryPackable]
+public partial class AvatarToolInfo
+{
+	public int ID { get; set; }
+	public string Name { get; set; } = "";
+	public string Path { get; set; } = "";
 }

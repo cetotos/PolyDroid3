@@ -174,7 +174,11 @@ public sealed partial class InsertService : Instance
 	public async Task<Tool?> ToolAsync(int id, string? directMeshUrl = null)
 	{
 		APIStoreItem storeItem = await GetStoreItemCachedAsync(id);
+		return BuildTool(id, storeItem.Name, directMeshUrl);
+	}
 
+	public Tool BuildTool(int id, string name, string? directMeshUrl = null)
+	{
 		PTMeshAsset meshAsset = New<PTMeshAsset>();
 		meshAsset.DirectURL = directMeshUrl ?? "";
 		meshAsset.AssetID = (uint)id;
@@ -200,7 +204,7 @@ public sealed partial class InsertService : Instance
 		mesh.Name = "Mesh";
 		mesh.CanCollide = false;
 		mesh.Anchored = true;
-		tool.Name = storeItem.Name;
+		tool.Name = name;
 
 		mesh.LocalPosition = new Vector3(1f, -7f, -3f);
 
