@@ -47,6 +47,7 @@ public sealed partial class Player : NPC
 	private bool _useStamina = true;
 	private float _staminaRegen = 1.2f;
 	private float _staminaBurn = 1.2f;
+	private bool _keepInventory = false;
 	private bool _useHeadTurning = false;
 	private int _userID;
 	private bool _useBubbleChat = true;
@@ -198,6 +199,17 @@ public sealed partial class Player : NPC
 		set
 		{
 			_respawnTime = value;
+			OnPropertyChanged();
+		}
+	}
+
+	[Editable, ScriptProperty]
+	public bool KeepInventory
+	{
+		get => _keepInventory;
+		set
+		{
+			_keepInventory = value;
 			OnPropertyChanged();
 		}
 	}
@@ -551,6 +563,10 @@ public sealed partial class Player : NPC
 	public override void Process(double delta)
 	{
 		base.Process(delta);
+		if (!Root.Network.IsServer)
+		{
+			UpdateCamera(delta);
+		}
 		if (!IsLocal)
 		{
 			UpdateTransformTick(delta);
@@ -723,8 +739,6 @@ public sealed partial class Player : NPC
 			Character?.Animator?.StopAnimation();
 		}
 
-		// Update camera right after position set
-		UpdateCamera(delta);
 		AfkTick(delta);
 
 		ApplyPushForce();
@@ -1075,6 +1089,7 @@ public sealed partial class Player : NPC
 		StaminaBurn = Root.PlayerDefaults.StaminaBurn;
 		JumpPower = Root.PlayerDefaults.JumpPower;
 		RespawnTime = Root.PlayerDefaults.RespawnTime;
+		KeepInventory = Root.PlayerDefaults.KeepInventory;
 		UseHeadTurning = Root.PlayerDefaults.UseHeadTurning;
 		UseBubbleChat = Root.PlayerDefaults.UseBubbleChat;
 		AutoLoadAppearance = Root.PlayerDefaults.AutoLoadAppearance;
@@ -1100,9 +1115,12 @@ public sealed partial class Player : NPC
 		// Only allow this operation in server
 		if (!Root.Network.IsServer) return;
 
-		foreach (Instance item in Inventory.GetChildren())
+		if (!KeepInventory)
 		{
-			item.Delete();
+			foreach (Instance item in Inventory.GetChildren())
+			{
+				item.Delete();
+			}
 		}
 
 		if (Root.PlayerDefaults.Inventory != null)

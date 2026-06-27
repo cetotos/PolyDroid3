@@ -209,7 +209,7 @@ public partial class UILeaderboard : TouchScrollContainer
 
 		_layout.AddChild(card);
 
-		foreach (var st in Stats.GetStats())
+		foreach (var st in Stats.GetVisibleStats())
 			card.AddStat(st);
 
 		player.StatChanged.Connect(OnPlayerStatChanged);
@@ -228,7 +228,7 @@ public partial class UILeaderboard : TouchScrollContainer
 
 		_layout.AddChild(card);
 
-		foreach (var st in Stats.GetStats())
+		foreach (var st in Stats.GetVisibleStats())
 		{
 			card.AddStat(st);
 		}
@@ -258,7 +258,7 @@ public partial class UILeaderboard : TouchScrollContainer
 			_neutralTeamItem = null;
 		}
 
-		foreach (var st in Stats.GetStats())
+		foreach (var st in Stats.GetVisibleStats())
 		{
 			if (st is Stat stat)
 			{
@@ -352,7 +352,7 @@ public partial class UILeaderboard : TouchScrollContainer
 		card.SetNeutral("Neutral Team", new Color(0.56f, 0.61f, 0.66f));
 		_layout.AddChild(card);
 		_neutralTeamItem = card;
-		foreach (var st in Stats.GetStats())
+		foreach (var st in Stats.GetVisibleStats())
 			card.AddStat(st);
 	}
 
@@ -385,7 +385,7 @@ public partial class UILeaderboard : TouchScrollContainer
 			_neutralTeamItem = null;
 		}
 
-		foreach (var st in Stats.GetStats())
+		foreach (var st in Stats.GetVisibleStats())
 		{
 			if (st is Stat stat)
 			{
@@ -401,6 +401,8 @@ public partial class UILeaderboard : TouchScrollContainer
 
 	private void OnPlayerStatChanged(Stat stat, object? _)
 	{
+		if (!stat.Visible) return;
+
 		foreach (var item in _teamToItem.Values)
 			item.UpdateStat(stat);
 		_neutralTeamItem?.UpdateStat(stat);
@@ -417,7 +419,7 @@ public partial class UILeaderboard : TouchScrollContainer
 			node.QueueFree();
 		}
 
-		foreach (var stat in Stats.GetStats())
+		foreach (var stat in Stats.GetVisibleStats())
 		{
 			if (stat.IsDeleted) continue;
 			Label headerLabel = new()
